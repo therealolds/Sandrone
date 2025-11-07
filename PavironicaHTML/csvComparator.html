@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CSV Comparator • Pavironica</title>
+    <style>
+      :root { --bg:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --card:#111827; --border:#1f2937; --accent:#22d3ee; --accent-2:#60a5fa; }
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+      header a{color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:6px 10px;border-radius:8px}
+      header a:hover{border-color:var(--accent);color:var(--text)}
+      header h1{margin:0;font-size:18px;letter-spacing:.2px}
+      main{padding:20px;max-width:1200px;margin:0 auto;display:grid;gap:16px}
+      .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+      .col{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+      label{font-size:12px;color:var(--muted)}
+      input[type=file]{width:100%}
+      textarea{width:100%;min-height:220px;resize:vertical;background:#0c1220;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:12px}
+      .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+      .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+      .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#002b36;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer}
+      .btn:disabled{opacity:.6;cursor:not-allowed}
+      .muted{color:var(--muted)}
+      pre{margin:0;white-space:pre-wrap;word-break:break-word}
+      .result{background:#0b1020;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px}
+      .ok{color:#34d399}
+      .warn{color:#fbbf24}
+      .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../index.html">← Back</a>
+      <h1>CSV Comparator</h1>
+      <span class="muted">Local-only • No data leaves your browser</span>
+    </header>
+    <main>
+      <div class="card controls">
+        <div class="controls">
+          <strong>Delimiter:</strong>
+          <label><input type="radio" name="delim" value="," checked /> comma</label>
+          <label><input type="radio" name="delim" value=";" /> semicolon</label>
+          <label><input type="radio" name="delim" value="\t" /> tab</label>
+        </div>
+        <label><input type="checkbox" id="ignore-header" /> ignore first row (header)</label>
+        <label><input type="checkbox" id="ignore-empty" checked /> ignore empty lines</label>
+        <button id="btn-compare" class="btn">Compare</button>
+        <span id="status" class="muted"></span>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="controls" style="justify-content: space-between;">
+            <label>File A</label>
+            <input id="file-a" type="file" accept="text/csv,.csv,.txt" />
+          </div>
+          <textarea id="text-a" placeholder="Paste CSV A here or choose a file..."></textarea>
+        </div>
+        <div class="col">
+          <div class="controls" style="justify-content: space-between;">
+            <label>File B</label>
+            <input id="file-b" type="file" accept="text/csv,.csv,.txt" />
+          </div>
+          <textarea id="text-b" placeholder="Paste CSV B here or choose a file..."></textarea>
+        </div>
+      </div>
+
+      <div class="card result">
+        <div class="muted" style="margin-bottom:8px;">Results</div>
+        <div id="summary" class="muted" style="margin-bottom:8px;"></div>
+        <div class="grid-2">
+          <div>
+            <strong>Missing in B</strong>
+            <pre id="miss-b"></pre>
+          </div>
+          <div>
+            <strong>Missing in A</strong>
+            <pre id="miss-a"></pre>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { compare } from "../PavironicaJS/csvComparator.js";
+
+      const fileA = document.getElementById('file-a');
+      const fileB = document.getElementById('file-b');
+      const textA = document.getElementById('text-a');
+      const textB = document.getElementById('text-b');
+      const btn   = document.getElementById('btn-compare');
+      const status= document.getElementById('status');
+      const summary = document.getElementById('summary');
+      const missB = document.getElementById('miss-b');
+      const missA = document.getElementById('miss-a');
+      const chkHeader = document.getElementById('ignore-header');
+      const chkEmpty  = document.getElementById('ignore-empty');
+
+      function readIntoText(input, target) {
+        const f = input.files?.[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => { target.value = reader.result ?? ''; };
+        reader.onerror = () => { target.value = ''; alert('Failed to read file: ' + reader.error); };
+        reader.readAsText(f);
+      }
+
+      fileA.addEventListener('change', () => readIntoText(fileA, textA));
+      fileB.addEventListener('change', () => readIntoText(fileB, textB));
+
+      function delim() { return document.querySelector('input[name="delim"]:checked')?.value || ','; }
+      const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+      const toCsvLine = row => row.map(cell => /[",\n\r;\t]/.test(cell) ? '"' + cell.replace(/"/g,'""') + '"' : cell).join(delim());
+
+      btn.addEventListener('click', () => {
+        status.textContent = 'Comparing…';
+        btn.disabled = true;
+        missA.textContent = '';
+        missB.textContent = '';
+        summary.textContent = '';
+        try {
+          const res = compare(textA.value, textB.value, { delimiter: delim(), ignoreHeader: chkHeader.checked, ignoreEmpty: chkEmpty.checked });
+          const a = res.missingInFile2 || [];
+          const b = res.missingInFile1 || [];
+          summary.innerHTML = `Missing in B: <strong>${a.length}</strong> • Missing in A: <strong>${b.length}</strong>`;
+          const maxShow = 200;
+          const showA = a.slice(0, maxShow).map(toCsvLine).map(esc).join('\n');
+          const showB = b.slice(0, maxShow).map(toCsvLine).map(esc).join('\n');
+          missB.innerHTML = showA + (a.length > maxShow ? `\n…(${a.length - maxShow} more)` : '');
+          missA.innerHTML = showB + (b.length > maxShow ? `\n…(${b.length - maxShow} more)` : '');
+          status.textContent = 'Done';
+        } catch (err) {
+          console.error(err);
+          status.textContent = 'Error';
+          summary.textContent = (err && err.message) ? err.message : String(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+  </html>
+
