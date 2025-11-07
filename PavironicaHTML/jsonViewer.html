@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JSON Viewer · Pavironica</title>
+    <style>
+      :root {
+        --bg: #0f172a; --panel: #0b1220; --text: #e5e7eb; --muted: #94a3b8;
+        --card: #111827; --border: #1f2937; --accent: #22d3ee; --accent-2: #60a5fa;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
+      header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+      header a { color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; }
+      header a:hover { border-color: var(--accent); color: var(--text); }
+      header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
+      main { padding: 20px; max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 0; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      label { font-size: 12px; color: var(--muted); }
+      input[type="file"] { width: 100%; }
+      input[type=number] { background:#0c1220;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;width:80px }
+      textarea { width: 100%; min-height: 320px; resize: vertical; background: #0c1220; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+      .result { background: #0b1020; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
+      .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .muted { color: var(--muted); }
+      .ok { color: #34d399; }
+      .warn { color: #fbbf24; }
+      #graph-wrap { cursor: grab; min-width: 0; }
+      #graph-wrap.panning { cursor: grabbing; }
+
+      /* Tree view styles */
+      .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      .node { line-height: 1.4; }
+      .line { display: flex; align-items: center; gap: 6px; }
+      .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: #0c1220; color: var(--text); cursor: pointer; user-select: none; }
+      .toggle:hover { border-color: var(--accent); }
+      .key { color: #93c5fd; }
+      .punct { color: #9ca3af; }
+      .string { color: #86efac; }
+      .number { color: #fca5a5; }
+      .boolean, .null { color: #fbbf24; }
+      .children { margin-left: 18px; border-left: 1px dashed #1f2937; padding-left: 8px; }
+      .summary { color: var(--muted); }
+      .collapsed > .children { display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../index.html">← Back</a>
+      <h1>JSON Viewer</h1>
+      <span class="muted">Local-only · No data leaves your browser</span>
+    </header>
+    <main>
+      <div class="card controls">
+        <label>Indent <input id="indent" type="number" min="0" max="10" value="2" /></label>
+        <label>JSON file <input id="file" type="file" accept="application/json,.json,.txt" /></label>
+        <button id="btn-format" class="btn">Format</button>
+        <label><input id="view-interactive" type="checkbox" checked /> interactive view</label>
+        <button id="btn-expand-all" class="btn" title="Expand all nodes">Expand all</button>
+        <button id="btn-collapse-all" class="btn" title="Collapse all nodes">Collapse all</button>
+        <span id="status" class="muted"></span>
+      </div>
+
+      <div class="card">
+        <label>Input (paste JSON or choose a file)</label>
+        <textarea id="input" placeholder="{\n  \"hello\": \"world\"\n}"></textarea>
+      </div>
+
+      <div class="card result">
+        <div class="muted" style="margin-bottom:8px;">Output</div>
+        <pre id="output"></pre>
+      </div>
+
+      <div class="card result">
+        <div class="muted" style="margin-bottom:8px;">Interactive View</div>
+        <div id="tree" class="tree"></div>
+      </div>
+
+      <div class="card">
+        <div class="controls" style="margin-bottom:8px;">
+          <strong>Graph View</strong>
+          <button id="btn-graph" class="btn">Render Graph</button>
+          <button id="btn-fit" class="btn" title="Fit SVG to content">Fit</button>
+          <span id="graph-status" class="muted"></span>
+        </div>
+        <div id="graph-wrap" style="height:520px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:
+          linear-gradient(0deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+          background-size: 20px 20px; background-position: -1px -1px;">
+          <svg id="graph" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { formatJson, renderTree, expandAll, collapseAll, renderGraph, fitToContent, enablePanScroll } from "../PavironicaJS/jsonViewer.js";
+
+      const file   = document.getElementById('file');
+      const input  = document.getElementById('input');
+      const output = document.getElementById('output');
+      const btn    = document.getElementById('btn-format');
+      const indent = document.getElementById('indent');
+      const status = document.getElementById('status');
+      const tree   = document.getElementById('tree');
+      const interactive = document.getElementById('view-interactive');
+      const btnExpandAll = document.getElementById('btn-expand-all');
+      const btnCollapseAll = document.getElementById('btn-collapse-all');
+      const btnGraph = document.getElementById('btn-graph');
+      const btnFit = document.getElementById('btn-fit');
+      const graphSvg = document.getElementById('graph');
+      const graphStatus = document.getElementById('graph-status');
+      const graphWrap = document.getElementById('graph-wrap');
+
+      function readIntoText(inputFile, target) {
+        const f = inputFile.files?.[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => { target.value = reader.result ?? ''; };
+        reader.onerror = () => { target.value = ''; alert('Failed to read file: ' + reader.error); };
+        reader.readAsText(f);
+      }
+
+      file.addEventListener('change', () => readIntoText(file, input));
+
+      btn.addEventListener('click', () => {
+        output.textContent = '';
+        status.textContent = 'Formatting…';
+        btn.disabled = true;
+        try {
+          const n = Math.max(0, Math.min(10, parseInt(indent.value, 10) || 0));
+          const formatted = formatJson(input.value, n);
+          output.textContent = formatted;
+          status.textContent = 'Done';
+          // Render interactive tree view if enabled
+          if (interactive.checked) {
+            try {
+              const obj = JSON.parse(input.value);
+              renderTree(tree, obj);
+            } catch (e) {
+              tree.textContent = (e && e.message) ? e.message : String(e);
+            }
+          } else {
+            tree.textContent = '';
+          }
+        } catch (err) {
+          console.error(err);
+          status.textContent = 'Error';
+          output.textContent = (err && err.message) ? err.message : String(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      interactive.addEventListener('change', () => {
+        if (!interactive.checked) { tree.textContent = ''; return; }
+        // Try render current input as tree without formatting
+        try { renderTree(tree, JSON.parse(input.value)); } catch { tree.textContent = ''; }
+      });
+
+      btnExpandAll.addEventListener('click', () => expandAll(tree));
+      btnCollapseAll.addEventListener('click', () => collapseAll(tree));
+
+      function tryParse() {
+        const t = input.value.trim();
+        if (!t) throw new Error('No JSON to visualize');
+        return JSON.parse(t);
+      }
+
+      btnGraph.addEventListener('click', () => {
+        try {
+          graphStatus.textContent = 'Rendering…';
+          const obj = tryParse();
+          renderGraph(graphSvg, obj);
+          graphStatus.textContent = 'Done';
+        } catch (e) {
+          graphStatus.textContent = (e && e.message) ? e.message : String(e);
+        }
+      });
+
+      btnFit.addEventListener('click', () => fitToContent(graphSvg));
+
+      // Enable mouse-drag panning within the graph wrapper without affecting the page
+      enablePanScroll(graphWrap);
+    </script>
+  </body>
+  </html>
