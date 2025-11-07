@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pavironica Tools</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #111827;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #22d3ee;
+            --accent-weak: rgba(34, 211, 238, 0.2);
+            --border: #1f2937;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 0.4px;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            color: var(--muted);
+        }
+
+        main {
+            padding: 24px;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-decoration: none;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+
+        .card h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .section {
+            margin: 18px 0 28px;
+        }
+
+        .section-title {
+            margin: 0 0 12px;
+            font-size: 16px;
+            color: var(--muted);
+            letter-spacing: 0.3px;
+        }
+
+        .disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 16px 24px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-weak);
+            font-size: 11px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Pavironica Family</h1>
+        <p>All tools run locally in your browser. No uploads.</p>
+        <p>You can check the code at</p>
+    </header>
+    <main>
+        <section class="section">
+            <h2 class="section-title">File comparison tools</h2>
+            <div class="grid">
+                <a class="card" href="PavironicaHTML/jsonComparator.html">
+                    <h2>JSON Comparator</h2>
+                    <p>Exact or structural diff of two JSON documents.</p>
+                </a>
+                <a class="card" href="PavironicaHTML/xmlComparator.html">
+                    <h2>XML Comparator</h2>
+                    <p>Order-sensitive or insensitive XML element comparison.</p>
+                </a>
+                <a class="card" href="PavironicaHTML/csvComparator.html">
+                    <h2>CSV Comparator</h2>
+                    <p>Multiset row comparison (missing/extra rows).</p>
+                </a>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">String preparation tools</h2>
+            <div class="grid">
+                <a class="card" href="PavironicaHTML/sqlFormatter.html">
+                    <h2>SQL Formatter</h2>
+                    <p>Turn lines into quoted SQL list values.</p>
+                </a>
+                <a class="card" href="PavironicaHTML/linePadder.html">
+                    <h2>Line Padder</h2>
+                    <p>Pad codes to a fixed width with zeros.</p>
+                </a>
+            </div>
+        </section>
+    </main>
+    <footer>
+        Sandrone — Static tools for random tasks
+        <span>Made in Modena</span>
+    </footer>
+</body>
+
+</html>

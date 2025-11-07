@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SQL Formatter • Pavironica</title>
+    <style>
+      :root { --bg:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --card:#111827; --border:#1f2937; --accent:#22d3ee; --accent-2:#60a5fa; }
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+      header a{color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:6px 10px;border-radius:8px}
+      header a:hover{border-color:var(--accent);color:var(--text)}
+      header h1{margin:0;font-size:18px;letter-spacing:.2px}
+      main{padding:20px;max-width:1100px;margin:0 auto;display:grid;gap:16px}
+      .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+      .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+      label{font-size:12px;color:var(--muted)}
+      textarea{width:100%;min-height:260px;resize:vertical;background:#0c1220;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:12px}
+      .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#002b36;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer}
+      .btn:disabled{opacity:.6;cursor:not-allowed}
+      .muted{color:var(--muted)}
+      pre{margin:0;white-space:pre-wrap;word-break:break-word}
+      .result{background:#0b1020;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px}
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../index.html">← Back</a>
+      <h1>SQL Formatter</h1>
+      <span class="muted">Lines → quoted SQL values</span>
+    </header>
+    <main>
+      <div class="card controls">
+        <div>
+          <strong>Output:</strong>
+          <label><input type="radio" name="mode" value="vertical" checked /> vertical (each on new line, commas)</label>
+          <label><input type="radio" name="mode" value="inline" /> inline (comma separated)</label>
+        </div>
+        <div>
+          <strong>Quote:</strong>
+          <label><input type="radio" name="quote" value="'" checked /> 'single'</label>
+          <label><input type="radio" name="quote" value='"' /> "double"</label>
+        </div>
+        <label><input type="checkbox" id="wrap-parens" /> wrap in parentheses</label>
+        <label><input type="checkbox" id="ignore-empty" checked /> ignore empty lines</label>
+        <button id="btn-format" class="btn">Format</button>
+      </div>
+
+      <div class="card">
+        <label>Input (one value per line)</label>
+        <textarea id="input"></textarea>
+      </div>
+
+      <div class="card result">
+        <div class="muted" style="margin-bottom:8px;">Output</div>
+        <pre id="output"></pre>
+      </div>
+    </main>
+
+    <script type="module">
+      import { format } from "../PavironicaJS/sqlFormatter.js";
+
+      const input = document.getElementById('input');
+      const output = document.getElementById('output');
+      const btn = document.getElementById('btn-format');
+      const wrap = document.getElementById('wrap-parens');
+      const ignoreEmpty = document.getElementById('ignore-empty');
+
+      function mode() { return document.querySelector('input[name="mode"]:checked')?.value || 'vertical'; }
+      function quote() { return document.querySelector('input[name="quote"]:checked')?.value || "'"; }
+
+      btn.addEventListener('click', () => {
+        try {
+          const out = format(input.value, { mode: mode(), quote: quote(), wrapInParens: wrap.checked, ignoreEmpty: ignoreEmpty.checked });
+          output.textContent = out;
+        } catch (e) {
+          output.textContent = (e && e.message) ? e.message : String(e);
+        }
+      });
+    </script>
+  </body>
+  </html>
+
