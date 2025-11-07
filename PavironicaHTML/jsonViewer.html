@@ -31,6 +31,7 @@
       .warn { color: #fbbf24; }
       #graph-wrap { cursor: grab; min-width: 0; }
       #graph-wrap.panning { cursor: grabbing; }
+      .hidden { display: none; }
 
       /* Tree view styles */
       .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
@@ -59,34 +60,23 @@
         <label>Indent <input id="indent" type="number" min="0" max="10" value="2" /></label>
         <label>JSON file <input id="file" type="file" accept="application/json,.json,.txt" /></label>
         <button id="btn-format" class="btn">Format</button>
-        <label><input id="view-interactive" type="checkbox" checked /> interactive view</label>
-        <button id="btn-expand-all" class="btn" title="Expand all nodes">Expand all</button>
-        <button id="btn-collapse-all" class="btn" title="Collapse all nodes">Collapse all</button>
+        <button id="btn-tree-view" class="btn" title="Show interactive tree">Interactive view</button>
+        <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <span id="status" class="muted"></span>
       </div>
 
       <div class="card">
-        <label>Input (paste JSON or choose a file)</label>
+        <label>JSON (paste or choose a file)</label>
         <textarea id="input" placeholder="{\n  \"hello\": \"world\"\n}"></textarea>
       </div>
 
-      <div class="card result">
-        <div class="muted" style="margin-bottom:8px;">Output</div>
-        <pre id="output"></pre>
-      </div>
-
-      <div class="card result">
+      <div id="tree-card" class="card result hidden">
         <div class="muted" style="margin-bottom:8px;">Interactive View</div>
         <div id="tree" class="tree"></div>
       </div>
 
-      <div class="card">
-        <div class="controls" style="margin-bottom:8px;">
-          <strong>Graph View</strong>
-          <button id="btn-graph" class="btn">Render Graph</button>
-          <button id="btn-fit" class="btn" title="Fit SVG to content">Fit</button>
-          <span id="graph-status" class="muted"></span>
-        </div>
+      <div id="graph-card" class="card hidden">
+        <div class="muted" style="margin-bottom:8px;">Graph View</div>
         <div id="graph-wrap" style="height:520px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:
           linear-gradient(0deg, rgba(255,255,255,0.03) 1px, transparent 1px),
           linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
@@ -101,19 +91,16 @@
 
       const file   = document.getElementById('file');
       const input  = document.getElementById('input');
-      const output = document.getElementById('output');
       const btn    = document.getElementById('btn-format');
       const indent = document.getElementById('indent');
       const status = document.getElementById('status');
       const tree   = document.getElementById('tree');
-      const interactive = document.getElementById('view-interactive');
-      const btnExpandAll = document.getElementById('btn-expand-all');
-      const btnCollapseAll = document.getElementById('btn-collapse-all');
-      const btnGraph = document.getElementById('btn-graph');
-      const btnFit = document.getElementById('btn-fit');
+      const treeCard = document.getElementById('tree-card');
       const graphSvg = document.getElementById('graph');
-      const graphStatus = document.getElementById('graph-status');
       const graphWrap = document.getElementById('graph-wrap');
+      const graphCard = document.getElementById('graph-card');
+      const btnTreeView = document.getElementById('btn-tree-view');
+      const btnGraphView = document.getElementById('btn-graph-view');
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
@@ -126,62 +113,50 @@
 
       file.addEventListener('change', () => readIntoText(file, input));
 
+      let currentView = 'none'; // 'tree' | 'graph' | 'none'
+
+      function showView(mode) {
+        currentView = mode;
+        if (mode === 'tree') {
+          treeCard.classList.remove('hidden');
+          graphCard.classList.add('hidden');
+          try { renderTree(tree, JSON.parse(input.value)); } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+        } else if (mode === 'graph') {
+          graphCard.classList.remove('hidden');
+          treeCard.classList.add('hidden');
+          try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { /* show minimal message */ while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
+        } else {
+          treeCard.classList.add('hidden');
+          graphCard.classList.add('hidden');
+        }
+      }
+
       btn.addEventListener('click', () => {
-        output.textContent = '';
         status.textContent = 'Formatting…';
         btn.disabled = true;
         try {
           const n = Math.max(0, Math.min(10, parseInt(indent.value, 10) || 0));
           const formatted = formatJson(input.value, n);
-          output.textContent = formatted;
+          input.value = formatted; // write back into the JSON box
           status.textContent = 'Done';
-          // Render interactive tree view if enabled
-          if (interactive.checked) {
-            try {
-              const obj = JSON.parse(input.value);
-              renderTree(tree, obj);
-            } catch (e) {
-              tree.textContent = (e && e.message) ? e.message : String(e);
-            }
-          } else {
-            tree.textContent = '';
+          // Refresh current view if visible
+          if (currentView === 'tree') {
+            try { renderTree(tree, JSON.parse(input.value)); } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+          } else if (currentView === 'graph') {
+            try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
           }
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
-          output.textContent = (err && err.message) ? err.message : String(err);
+          // Keep content; show error under active view if any
+          if (currentView === 'tree') tree.textContent = (err && err.message) ? err.message : String(err);
         } finally {
           btn.disabled = false;
         }
       });
 
-      interactive.addEventListener('change', () => {
-        if (!interactive.checked) { tree.textContent = ''; return; }
-        // Try render current input as tree without formatting
-        try { renderTree(tree, JSON.parse(input.value)); } catch { tree.textContent = ''; }
-      });
-
-      btnExpandAll.addEventListener('click', () => expandAll(tree));
-      btnCollapseAll.addEventListener('click', () => collapseAll(tree));
-
-      function tryParse() {
-        const t = input.value.trim();
-        if (!t) throw new Error('No JSON to visualize');
-        return JSON.parse(t);
-      }
-
-      btnGraph.addEventListener('click', () => {
-        try {
-          graphStatus.textContent = 'Rendering…';
-          const obj = tryParse();
-          renderGraph(graphSvg, obj);
-          graphStatus.textContent = 'Done';
-        } catch (e) {
-          graphStatus.textContent = (e && e.message) ? e.message : String(e);
-        }
-      });
-
-      btnFit.addEventListener('click', () => fitToContent(graphSvg));
+      btnTreeView.addEventListener('click', () => showView('tree'));
+      btnGraphView.addEventListener('click', () => showView('graph'));
 
       // Enable mouse-drag panning within the graph wrapper without affecting the page
       enablePanScroll(graphWrap);
