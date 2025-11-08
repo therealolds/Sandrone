@@ -121,6 +121,7 @@
       btn.addEventListener('click', async () => {
         res.textContent = '';
         status.textContent = 'Comparing…';
+        status.textContent = 'Comparing...';
         btn.disabled = true;
         try {
           const lines = compare(textA.value, textB.value, { mode: mode() });
@@ -140,6 +141,7 @@
         const problems = [];
         status.textContent = 'Formatting…';
 
+        status.textContent = 'Formatting...';
         const tryFormat = (val) => {
           const t = val.trim();
           if (!t) return { ok: false };

@@ -65,6 +65,8 @@ function createNode(value, key) {
   toggle.className = 'toggle';
   toggle.textContent = '−';
   toggle.title = 'Collapse/Expand';
+  // Ensure ASCII toggle symbol
+  toggle.textContent = '-';
   line.appendChild(toggle);
 
   if (key !== undefined) {
@@ -88,6 +90,10 @@ function createNode(value, key) {
   summary.style.display = 'none';
   const count = isArray ? value.length : Object.keys(value).length;
   summary.textContent = isArray ? `… ${count} item${count === 1 ? '' : 's'} …` : `… ${count} key${count === 1 ? '' : 's'} …`;
+  // Normalize summary text to ASCII
+  summary.textContent = isArray
+    ? `(${count} item${count === 1 ? '' : 's'})`
+    : `(${count} key${count === 1 ? '' : 's'})`;
   line.appendChild(summary);
 
   node.appendChild(line);
@@ -215,28 +221,33 @@ function nodeLabel(n) {
   return [String(n.key) + ':', v];
 }
 
-function measureLayout(node, cfg) {
+// Measure subtree height taking collapsed nodes into account
+function measureLayout(node, cfg, expanded) {
   const padY = cfg.nodeVPad;
   const lineH = cfg.lineHeight;
   const lines = nodeLabel(node).length;
   const selfH = lines * lineH + padY * 2;
   if (!node.children.length) { node._subH = selfH; return node._subH; }
+  // If node is not expanded, its visual subtree height equals its own height
+  if (!expanded.has(node.id)) { node._subH = selfH; return node._subH; }
   let sum = 0;
   for (const { child } of node.children) {
-    sum += measureLayout(child, cfg) + cfg.vGap;
+    sum += measureLayout(child, cfg, expanded) + cfg.vGap;
   }
   sum -= cfg.vGap; // remove last gap
   node._subH = Math.max(selfH, sum);
   return node._subH;
 }
 
-function layout(node, cfg, x0, y0) {
+function layout(node, cfg, x0, y0, expanded) {
   node.x = x0;
-  if (!node.children.length) { node.y = y0 + node._subH / 2; return; }
-  // position children first
+  if (!node.children.length || !expanded.has(node.id)) {
+    node.y = y0 + node._subH / 2; return;
+  }
+  // position children first (only if expanded)
   let curY = y0;
   for (const e of node.children) {
-    layout(e.child, cfg, x0 + cfg.xGap, curY);
+    layout(e.child, cfg, x0 + cfg.xGap, curY, expanded);
     curY += e.child._subH + cfg.vGap;
   }
   const first = node.children[0].child;
@@ -277,6 +288,17 @@ function drawNode(g, node, cfg) {
   }
 }
 
+function cubicPoint(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, t) {
+  const u = 1 - t;
+  const tt = t * t;
+  const uu = u * u;
+  const uuu = uu * u;
+  const ttt = tt * t;
+  const x = uuu * p0x + 3 * uu * t * p1x + 3 * u * tt * p2x + ttt * p3x;
+  const y = uuu * p0y + 3 * uu * t * p1y + 3 * u * tt * p2y + ttt * p3y;
+  return { x, y };
+}
+
 function drawEdge(g, parent, child, label, cfg) {
   const x1 = parent.x + cfg.nodeWidth;
   const y1 = parent.y;
@@ -292,50 +314,123 @@ function drawEdge(g, parent, child, label, cfg) {
   g.appendChild(path);
 
   if (label !== undefined) {
-    const lx = (x1 + x2) / 2;
-    const ly = (y1 + y2) / 2 - 4;
+    // Place label above the child box, centered horizontally
+    const childLines = nodeLabel(child);
+    const childH = childLines.length * cfg.lineHeight + cfg.nodeVPad * 2;
+    const lx = x2 + cfg.nodeWidth / 2;
+    const ly = y2 - childH / 2 - 6;
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', String(lx));
     text.setAttribute('y', String(ly));
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('font-size', '11');
     text.setAttribute('fill', '#9ca3af');
+    text.setAttribute('pointer-events', 'none');
     text.textContent = String(label);
     g.appendChild(text);
+    // background to improve readability over edges/nodes
+    const bb = text.getBBox();
+    const pad = 3;
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('x', String(bb.x - pad));
+    bg.setAttribute('y', String(bb.y - pad));
+    bg.setAttribute('rx', '3');
+    bg.setAttribute('ry', '3');
+    bg.setAttribute('width', String(bb.width + pad * 2));
+    bg.setAttribute('height', String(bb.height + pad * 2));
+    bg.setAttribute('fill', '#0b1020');
+    bg.setAttribute('stroke', '#1f2937');
+    bg.setAttribute('opacity', '0.9');
+    // put bg behind text
+    g.insertBefore(bg, text);
   }
 }
 
 function collectNodes(node, arr = []) { arr.push(node); for (const e of node.children) collectNodes(e.child, arr); return arr; }
 
-export function renderGraph(svg, obj) {
-  if (!svg) return;
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
-  const cfg = { nodeWidth: 180, nodeVPad: 10, lineHeight: 16, xGap: 220, vGap: 16 };
-  const root = buildTree(obj);
-  measureLayout(root, cfg);
-  layout(root, cfg, 20, 20);
-
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  svg.appendChild(g);
-
-  // edges first
-  (function drawEdges(n){
-    for (const e of n.children) {
-      drawEdge(g, n, e.child, e.edge, cfg);
-      drawEdges(e.child);
-    }
+function visibleNodes(root, expanded) {
+  const out = [];
+  (function walk(n){
+    out.push(n);
+    if (!expanded.has(n.id)) return;
+    for (const e of n.children) walk(e.child);
   })(root);
+  return out;
+}
 
-  // nodes on top
-  for (const n of collectNodes(root)) drawNode(g, n, cfg);
+export function renderGraph(svg, obj, opts = {}) {
+  if (!svg) return;
+  const cfg = { nodeWidth: 180, nodeVPad: 10, lineHeight: 16, xGap: 260, vGap: 16 };
+  let root = buildTree(obj);
 
-  // Set intrinsic size
-  const nodes = collectNodes(root);
-  const maxX = Math.max(...nodes.map(n => n.x)) + cfg.nodeWidth + 20;
-  const maxY = Math.max(...nodes.map(n => n.y)) + 20;
-  svg.setAttribute('viewBox', `0 0 ${Math.ceil(maxX)} ${Math.ceil(maxY)}`);
-  svg.setAttribute('width', String(Math.ceil(maxX)));
-  svg.setAttribute('height', String(Math.ceil(maxY)));
+  // If root is an object with a single key, start from that child so the first box shows that key (e.g., 'glossary')
+  if (opts.startAtSingleChild !== false && root.type === 'object' && root.children.length === 1) {
+    root = root.children[0].child;
+  }
+
+  const allById = new Map(collectNodes(root).map(n => [n.id, n]));
+  const expanded = new Set(); // collapsed by default
+
+  function rerender() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    measureLayout(root, cfg, expanded);
+    layout(root, cfg, 20, 20, expanded);
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    svg.appendChild(g);
+
+    // Draw edges only from expanded parents
+    (function drawVisibleEdges(n){
+      if (expanded.has(n.id)) {
+        for (const e of n.children) {
+          drawEdge(g, n, e.child, e.edge, cfg);
+          drawVisibleEdges(e.child);
+        }
+      }
+    })(root);
+
+    // Draw nodes that are visible
+    const nodes = visibleNodes(root, expanded);
+    for (const n of nodes) {
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('data-id', String(n.id));
+      // draw node into this temp group
+      drawNode(group, n, cfg);
+      // clickable toggle for nodes with children
+      if (n.children.length) {
+        group.style.cursor = 'pointer';
+        group.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (expanded.has(n.id)) expanded.delete(n.id); else expanded.add(n.id);
+          rerender();
+        });
+      }
+      g.appendChild(group);
+    }
+
+    // Fit SVG size to content
+    const maxX = Math.max(...nodes.map(n => n.x)) + cfg.nodeWidth + 20;
+    const maxY = Math.max(...nodes.map(n => n.y)) + 20;
+    svg.setAttribute('viewBox', `0 0 ${Math.ceil(maxX)} ${Math.ceil(maxY)}`);
+    svg.setAttribute('width', String(Math.ceil(maxX)));
+    svg.setAttribute('height', String(Math.ceil(maxY)));
+  }
+
+  // initial paint (only one box visible)
+  rerender();
+
+  // Attach controller to the SVG for external control (expand/collapse all)
+  svg._graphCtl = {
+    expandAll() {
+      expanded.clear();
+      for (const n of allById.values()) if (n.children.length) expanded.add(n.id);
+      rerender();
+    },
+    collapseAll() {
+      expanded.clear();
+      rerender();
+    }
+  };
 }
 
 export function fitToContent(svg) {

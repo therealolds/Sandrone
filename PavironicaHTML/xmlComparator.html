@@ -104,6 +104,7 @@
       btn.addEventListener('click', () => {
         res.textContent = '';
         status.textContent = 'Comparing…';
+        status.textContent = 'Comparing...';
         btn.disabled = true;
         try {
           const diffs = compare(textA.value, textB.value, { orderSensitive: chk.checked });
@@ -120,4 +121,3 @@
     </script>
   </body>
   </html>
-
