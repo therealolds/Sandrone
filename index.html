@@ -5,27 +5,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sandrone</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
     <style>
-        :root {
-            --bg: #0f172a;
-            --card: #111827;
-            --text: #e5e7eb;
-            --muted: #94a3b8;
-            --accent: #22d3ee;
-            --accent-weak: rgba(34, 211, 238, 0.2);
-            --border: #1f2937;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
+        /* Page-specific styles for the home grid and footer */
         body {
-            margin: 0;
-            padding: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -33,44 +16,60 @@
 
         header {
             padding: 24px;
-            border-bottom: 1px solid var(--border);
         }
 
         header h1 {
-            margin: 0;
             font-size: 24px;
             letter-spacing: 0.4px;
         }
 
         header p {
             margin: 6px 0 0;
-            color: var(--muted);
         }
 
         main {
             padding: 24px;
-            width: 100%;
             max-width: 1100px;
-            margin: 0 auto;
         }
 
+        /* Equal-width cards using flexbox with breakpoints */
         .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 16px;
+        }
+
+        .grid>.card {
+            flex: 0 1 calc((100% - 32px) / 3);
+        }
+
+        @media (max-width: 1000px) {
+            .grid>.card {
+                flex-basis: calc((100% - 16px) / 2);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .grid>.card {
+                flex-basis: 100%;
+            }
         }
 
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            text-decoration: none;
             color: var(--text);
+            text-decoration: none;
             display: flex;
             flex-direction: column;
             gap: 8px;
+            border-radius: 12px;
             transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+        }
+
+        a.card {
+            color: var(--text);
+            text-decoration: none;
         }
 
         .card:hover {
@@ -109,7 +108,6 @@
         footer {
             margin-top: auto;
             padding: 16px 24px;
-            color: var(--muted);
             border-top: 1px solid var(--border);
             font-size: 12px;
             display: flex;
@@ -124,7 +122,7 @@
             border-radius: 999px;
             border: 1px solid var(--accent);
             color: var(--accent);
-            background: var(--accent-weak);
+            background: rgba(34, 211, 238, 0.2);
             font-size: 11px;
         }
     </style>
@@ -132,8 +130,8 @@
 
 <body>
     <header>
-        <h1>Pavironica Family</h1>
         <p>All tools run locally in your browser. No uploads.</p>
+        <h1>Sandrone</h1>
         <p>You can check the code at the GitHub repository: <a
                 href="https://github.com/therealolds/Sandrone">Sandrone</a></p>
     </header>
@@ -147,7 +145,7 @@
                 </a>
                 <a class="card" href="PavironicaHTML/xmlComparator.html">
                     <h2>XML Comparator</h2>
-                    <p>Order-sensitive or insensitive XML element comparison.</p>
+                    <p>Exact or structural diff of two XML documents.</p>
                 </a>
                 <a class="card" href="PavironicaHTML/csvComparator.html">
                     <h2>CSV Comparator</h2>
@@ -165,7 +163,7 @@
                 </a>
                 <a class="card" href="PavironicaHTML/linePadder.html">
                     <h2>Line Padder</h2>
-                    <p>Pad codes to a fixed width with zeros.</p>
+                    <p>Pad codes to a fixed width with zeros or a character.</p>
                 </a>
             </div>
         </section>
@@ -175,7 +173,7 @@
             <div class="grid">
                 <a class="card" href="PavironicaHTML/jsonViewer.html">
                     <h2>JSON Viewer</h2>
-                    <p>To view and analyze JSON files</p>
+                    <p>View and analyze JSON files.</p>
                 </a>
                 <a class="card" href="PavironicaHTML/xmlViewer.html">
                     <h2>XML Viewer</h2>
