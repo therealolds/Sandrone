@@ -62,6 +62,8 @@
         <button id="btn-format" class="btn">Format</button>
         <button id="btn-tree-view" class="btn" title="Show interactive tree">Interactive view</button>
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
+        <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
+        <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
         <span id="status" class="muted"></span>
       </div>
 
@@ -101,6 +103,8 @@
       const graphCard = document.getElementById('graph-card');
       const btnTreeView = document.getElementById('btn-tree-view');
       const btnGraphView = document.getElementById('btn-graph-view');
+      const btnExpand = document.getElementById('btn-expand');
+      const btnCollapse = document.getElementById('btn-collapse');
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
@@ -133,6 +137,7 @@
 
       btn.addEventListener('click', () => {
         status.textContent = 'Formatting…';
+        status.textContent = 'Formatting...';
         btn.disabled = true;
         try {
           const n = Math.max(0, Math.min(10, parseInt(indent.value, 10) || 0));
@@ -157,6 +162,22 @@
 
       btnTreeView.addEventListener('click', () => showView('tree'));
       btnGraphView.addEventListener('click', () => showView('graph'));
+
+      // Expand/Collapse buttons apply to the current view
+      btnExpand.addEventListener('click', () => {
+        if (currentView === 'tree') {
+          expandAll(tree);
+        } else if (currentView === 'graph') {
+          graphSvg._graphCtl && graphSvg._graphCtl.expandAll();
+        }
+      });
+      btnCollapse.addEventListener('click', () => {
+        if (currentView === 'tree') {
+          collapseAll(tree);
+        } else if (currentView === 'graph') {
+          graphSvg._graphCtl && graphSvg._graphCtl.collapseAll();
+        }
+      });
 
       // Enable mouse-drag panning within the graph wrapper without affecting the page
       enablePanScroll(graphWrap);

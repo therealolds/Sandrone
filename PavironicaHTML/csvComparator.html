@@ -116,6 +116,7 @@
 
       btn.addEventListener('click', () => {
         status.textContent = 'Comparing…';
+        status.textContent = 'Comparing...';
         btn.disabled = true;
         missA.textContent = '';
         missB.textContent = '';
@@ -130,7 +131,14 @@
           const showB = b.slice(0, maxShow).map(toCsvLine).map(esc).join('\n');
           missB.innerHTML = showA + (a.length > maxShow ? `\n…(${a.length - maxShow} more)` : '');
           missA.innerHTML = showB + (b.length > maxShow ? `\n…(${b.length - maxShow} more)` : '');
+          // Ensure ASCII summary separator
+          summary.innerHTML = `Missing in B: <strong>${a.length}</strong> | Missing in A: <strong>${b.length}</strong>`;
+          // Ensure ASCII summary separator
+          summary.innerHTML = `Missing in B: <strong>${a.length}</strong> | Missing in A: <strong>${b.length}</strong>`;
           status.textContent = 'Done';
+          // Ensure ASCII overflow indicators
+          missB.innerHTML = showA + (a.length > maxShow ? `\n...(${a.length - maxShow} more)` : '');
+          missA.innerHTML = showB + (b.length > maxShow ? `\n...(${b.length - maxShow} more)` : '');
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
@@ -142,4 +150,3 @@
     </script>
   </body>
   </html>
-
