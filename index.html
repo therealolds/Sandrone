@@ -5,6 +5,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sandrone</title>
+    <script>
+        // Apply saved theme ASAP to prevent flash
+        (function(){
+            try {
+                const t = localStorage.getItem('theme');
+                if (t === 'light') document.documentElement.setAttribute('data-theme','light');
+            } catch(e) { /* ignore */ }
+        })();
+    </script>
     <link rel="stylesheet" href="assets/css/style.css" />
     <style>
         /* Page-specific styles for the home grid and footer */
@@ -125,6 +134,15 @@
             background: rgba(34, 211, 238, 0.2);
             font-size: 11px;
         }
+        .theme-toggle {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
     </style>
 </head>
 
@@ -134,6 +152,7 @@
         <h1>Sandrone</h1>
         <p>You can check the code at the GitHub repository: <a
                 href="https://github.com/therealolds/Sandrone">Sandrone</a></p>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme"></button>
     </header>
     <main>
         <section class="section">
@@ -196,6 +215,22 @@
   </div>
 </footer>
 
+
+<script>
+  (function(){
+    const root = document.documentElement;
+    const btn = document.getElementById('theme-toggle');
+    const apply = (t) => {
+      if (t === 'light') root.setAttribute('data-theme','light');
+      else root.removeAttribute('data-theme');
+      try { localStorage.setItem('theme', t); } catch(_){}
+      btn.textContent = 'Theme: ' + (t === 'light' ? 'Light' : 'Dark');
+    };
+    const current = (localStorage.getItem('theme') === 'light') ? 'light' : 'dark';
+    apply(current);
+    btn.addEventListener('click', () => apply(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light'));
+  })();
+ </script>
 
 </body>
 

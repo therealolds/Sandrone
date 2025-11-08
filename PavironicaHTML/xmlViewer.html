@@ -4,12 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>XML Viewer · Pavironica</title>
+    <script>(function(){try{const t=localStorage.getItem('theme'); if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
     <link rel="stylesheet" href="../assets/css/style.css" />
     <style>
-      :root {
-        --bg: #0f172a; --panel: #0b1220; --text: #e5e7eb; --muted: #94a3b8;
-        --card: #111827; --border: #1f2937; --accent: #22d3ee; --accent-2: #60a5fa;
-      }
+      /* theme vars provided by shared CSS */
       * { box-sizing: border-box; }
       body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
       header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -21,10 +19,10 @@
       .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       label { font-size: 12px; color: var(--muted); }
       input[type="file"] { width: 100%; }
-      input[type=number] { background:#0c1220;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;width:80px }
-      textarea { width: 100%; min-height: 320px; resize: vertical; background: #0c1220; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      input[type=number] { background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;width:80px }
+      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
       pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
-      .result { background: #0b1020; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
+      .result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
       .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
       .btn:disabled { opacity: 0.6; cursor: not-allowed; }
       .muted { color: var(--muted); }
@@ -36,12 +34,12 @@
       .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
       .node { line-height: 1.4; }
       .line { display: flex; align-items: center; gap: 6px; }
-      .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: #0c1220; color: var(--text); cursor: pointer; user-select: none; }
+      .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; }
       .toggle:hover { border-color: var(--accent); }
       .key { color: #93c5fd; }
       .punct { color: #9ca3af; }
       .string { color: #86efac; }
-      .children { margin-left: 18px; border-left: 1px dashed #1f2937; padding-left: 8px; }
+      .children { margin-left: 18px; border-left: 1px dashed var(--guide); padding-left: 8px; }
       .summary { color: var(--muted); }
       .collapsed > .children { display: none; }
     </style>

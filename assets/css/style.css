@@ -8,6 +8,25 @@
   --border: #1f2937;
   --accent: #22d3ee;
   --accent-2: #60a5fa;
+  /* additional surfaces for theming */
+  --input: #0c1220;
+  --result: #0b1020;
+  --guide: #1f2937;
+}
+
+/* Light theme overrides */
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --accent: #22d3ee;
+  --accent-2: #60a5fa;
+  --input: #ffffff;
+  --result: #ffffff;
+  --guide: #cbd5e1;
 }
 
 * { box-sizing: border-box; }
@@ -44,10 +63,10 @@ a.card:hover { border-color: var(--accent); box-shadow: 0 6px 18px rgba(0,0,0,0.
 .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; flex-direction: row; }
 label { font-size: 12px; color: var(--muted); }
 input[type="file"] { width: 100%; }
-input[type="number"], input[type="text"] { background:#0c1220; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
-textarea { width: 100%; min-height: 260px; resize: vertical; background: #0c1220; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+input[type="number"], input[type="text"] { background: var(--input); color: var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; }
+textarea { width: 100%; min-height: 260px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
 pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
-.result { background: #0b1020; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
+.result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
 .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .muted { color: var(--muted); }
@@ -59,14 +78,14 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
 .node { line-height: 1.4; }
 .line { display: flex; align-items: center; gap: 6px; }
-.toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: #0c1220; color: var(--text); cursor: pointer; user-select: none; }
+.toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; }
 .toggle:hover { border-color: var(--accent); }
 .key { color: #93c5fd; }
 .punct { color: #9ca3af; }
 .string { color: #86efac; }
 .number { color: #fca5a5; }
 .boolean, .null { color: #fbbf24; }
-.children { margin-left: 18px; border-left: 1px dashed #1f2937; padding-left: 8px; }
+.children { margin-left: 18px; border-left: 1px dashed var(--guide); padding-left: 8px; }
 .summary { color: var(--muted); }
 .collapsed > .children { display: none; }
 
