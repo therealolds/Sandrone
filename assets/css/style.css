@@ -51,7 +51,7 @@ header a { color: var(--muted); text-decoration: none; border: 1px solid var(--b
 header a:hover { border-color: var(--accent); color: var(--text); }
 header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
 
-main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+main { padding: 20px; max-width: clamp(1100px, 95vw, 1800px); margin: 0 auto; }
 
 /* Reusable grid wrapper for cards */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
