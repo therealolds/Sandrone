@@ -117,30 +117,31 @@ function createNode(value, key) {
         firstLine.insertBefore(colon, idxSpan.nextSibling);
       }
       children.appendChild(child);
-      // trailing comma between items
-      const comma = document.createElement('div');
-      comma.className = 'line';
-      const punct = document.createElement('span');
-      punct.className = 'punct';
-      punct.textContent = ',';
-      comma.appendChild(punct);
-      children.appendChild(comma);
+      // Append comma to the child's last line, except after the final item
+      if (idx < value.length - 1) {
+        const lines = child.querySelectorAll('.line');
+        const lastLine = lines[lines.length - 1] || child;
+        const punct = document.createElement('span');
+        punct.className = 'punct';
+        punct.textContent = ',';
+        lastLine.appendChild(punct);
+      }
     });
-    if (children.lastChild) children.removeChild(children.lastChild); // remove last comma
   } else {
     const keys = Object.keys(value);
-    keys.forEach((k) => {
+    keys.forEach((k, i) => {
       const child = createNode(value[k], k);
       children.appendChild(child);
-      const comma = document.createElement('div');
-      comma.className = 'line';
-      const punct = document.createElement('span');
-      punct.className = 'punct';
-      punct.textContent = ',';
-      comma.appendChild(punct);
-      children.appendChild(comma);
+      // Append comma to the child's last line, except after the final key
+      if (i < keys.length - 1) {
+        const lines = child.querySelectorAll('.line');
+        const lastLine = lines[lines.length - 1] || child;
+        const punct = document.createElement('span');
+        punct.className = 'punct';
+        punct.textContent = ',';
+        lastLine.appendChild(punct);
+      }
     });
-    if (children.lastChild) children.removeChild(children.lastChild);
   }
 
   const closing = document.createElement('div');
