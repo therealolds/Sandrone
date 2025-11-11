@@ -66,6 +66,14 @@
         <span id="status" class="muted"></span>
       </div>
 
+      <!-- Ephemeral memory slots (lost on page leave) -->
+      <div class="card controls">
+        <label class="muted">Memory (click = load, Shift+click = save)</label>
+        <button id="mem-1" class="btn" title="Click: load. Shift+Click: save">M1</button>
+        <button id="mem-2" class="btn" title="Click: load. Shift+Click: save">M2</button>
+        <button id="mem-3" class="btn" title="Click: load. Shift+Click: save">M3</button>
+      </div>
+
       <div class="card">
         <label>JSON (paste or choose a file)</label>
         <textarea id="input" placeholder="{\n  \"hello\": \"world\"\n}"></textarea>
@@ -104,6 +112,9 @@
       const btnGraphView = document.getElementById('btn-graph-view');
       const btnExpand = document.getElementById('btn-expand');
       const btnCollapse = document.getElementById('btn-collapse');
+      const memBtn1 = document.getElementById('mem-1');
+      const memBtn2 = document.getElementById('mem-2');
+      const memBtn3 = document.getElementById('mem-3');
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
@@ -180,6 +191,32 @@
 
       // Enable mouse-drag panning within the graph wrapper without affecting the page
       enablePanScroll(graphWrap);
+
+      // Memory slots (ephemeral, page-scoped)
+      const mem = [null, null, null];
+      function refreshMemLabels() {
+        [memBtn1, memBtn2, memBtn3].forEach((b, i) => {
+          if (!b) return;
+          const base = `M${i+1}`;
+          b.textContent = mem[i] != null && mem[i] !== '' ? `${base} •` : base;
+        });
+      }
+      function saveSlot(i) { mem[i] = input.value; refreshMemLabels(); status.textContent = `Saved to M${i+1}`; }
+      function loadSlot(i) {
+        if (mem[i] == null) { status.textContent = `M${i+1} empty`; return; }
+        input.value = mem[i];
+        // Refresh current view if visible
+        if (currentView === 'tree') {
+          try { renderTree(tree, JSON.parse(input.value)); } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+        } else if (currentView === 'graph') {
+          try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
+        }
+        status.textContent = `Loaded M${i+1}`;
+      }
+      [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('click', (ev) => {
+        if (ev.shiftKey || ev.ctrlKey || ev.altKey) saveSlot(i); else loadSlot(i);
+      }));
+      refreshMemLabels();
     </script>
   </body>
   </html>
