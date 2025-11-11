@@ -62,6 +62,14 @@
         <span id="status" class="muted"></span>
       </div>
 
+      <!-- Ephemeral memory slots (lost on page leave) -->
+      <div class="card controls">
+        <label class="muted">Memory (click = load, Shift+click = save)</label>
+        <button id="mem-1" class="btn" title="Click: load. Shift+Click: save">M1</button>
+        <button id="mem-2" class="btn" title="Click: load. Shift+Click: save">M2</button>
+        <button id="mem-3" class="btn" title="Click: load. Shift+Click: save">M3</button>
+      </div>
+
       <div class="card">
         <label>XML (paste or choose a file)</label>
         <textarea id="input" placeholder="<root>\n  <hello>world</hello>\n</root>"></textarea>
@@ -99,6 +107,9 @@
       const status = document.getElementById('status');
       const treeCard = document.getElementById('tree-card');
       const tree = document.getElementById('tree');
+      const memBtn1 = document.getElementById('mem-1');
+      const memBtn2 = document.getElementById('mem-2');
+      const memBtn3 = document.getElementById('mem-3');
 
       function readFileIntoTextarea(inputEl, target) {
         const f = inputEl.files?.[0];
@@ -190,6 +201,44 @@
       });
 
       enablePanScroll(graphWrap);
+
+      // Memory slots (ephemeral, page-scoped)
+      const mem = [null, null, null];
+      function refreshMemLabels() {
+        [memBtn1, memBtn2, memBtn3].forEach((b, i) => {
+          if (!b) return;
+          const base = `M${i+1}`;
+          b.textContent = mem[i] != null && mem[i] !== '' ? `${base} •` : base;
+        });
+      }
+      function saveSlot(i) { mem[i] = input.value; refreshMemLabels(); status.textContent = `Saved to M${i+1}`; }
+      function loadSlot(i) {
+        if (mem[i] == null) { status.textContent = `M${i+1} empty`; return; }
+        input.value = mem[i];
+        if (currentView === 'tree') {
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString((input.value || '').trim(), 'application/xml');
+            const err = doc.querySelector('parsererror');
+            if (err) throw new Error(err.textContent || 'Invalid XML');
+            renderXmlTree(tree, doc.documentElement);
+          } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+        } else if (currentView === 'graph') {
+          try {
+            while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString((input.value || '').trim(), 'application/xml');
+            const err = doc.querySelector('parsererror');
+            if (err) throw new Error(err.textContent || 'Invalid XML');
+            renderGraph(graphSvg, doc.documentElement);
+          } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
+        }
+        status.textContent = `Loaded M${i+1}`;
+      }
+      [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('click', (ev) => {
+        if (ev.shiftKey || ev.ctrlKey || ev.altKey) saveSlot(i); else loadSlot(i);
+      }));
+      refreshMemLabels();
     </script>
   </body>
   </html>

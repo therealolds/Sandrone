@@ -232,10 +232,11 @@ function measureLayout(node, cfg, expanded) {
   // If node is not expanded, its visual subtree height equals its own height
   if (!expanded.has(node.id)) { node._subH = selfH; return node._subH; }
   let sum = 0;
-  for (const { child } of node.children) {
-    sum += measureLayout(child, cfg, expanded) + cfg.vGap;
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i].child;
+    sum += measureLayout(child, cfg, expanded);
+    if (i < node.children.length - 1) sum += cfg.vGap + (cfg.labelRoom || 0);
   }
-  sum -= cfg.vGap; // remove last gap
   node._subH = Math.max(selfH, sum);
   return node._subH;
 }
@@ -247,9 +248,10 @@ function layout(node, cfg, x0, y0, expanded) {
   }
   // position children first (only if expanded)
   let curY = y0;
-  for (const e of node.children) {
+  for (let i = 0; i < node.children.length; i++) {
+    const e = node.children[i];
     layout(e.child, cfg, x0 + cfg.xGap, curY, expanded);
-    curY += e.child._subH + cfg.vGap;
+    if (i < node.children.length - 1) curY += e.child._subH + cfg.vGap + (cfg.labelRoom || 0);
   }
   const first = node.children[0].child;
   const last = node.children[node.children.length - 1].child;
@@ -319,7 +321,7 @@ function drawEdge(g, parent, child, label, cfg) {
     const childLines = nodeLabel(child);
     const childH = childLines.length * cfg.lineHeight + cfg.nodeVPad * 2;
     const lx = x2 + cfg.nodeWidth / 2;
-    const ly = y2 - childH / 2 - 6;
+    const ly = y2 - childH / 2 - (cfg.labelGap || 6);
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', String(lx));
     text.setAttribute('y', String(ly));
@@ -361,7 +363,8 @@ function visibleNodes(root, expanded) {
 
 export function renderGraph(svg, obj, opts = {}) {
   if (!svg) return;
-  const cfg = { nodeWidth: 180, nodeVPad: 10, lineHeight: 16, xGap: 260, vGap: 16 };
+  // labelGap keeps label close to its own box; labelRoom adds extra space between sibling boxes so labels don't overlap previous boxes
+  const cfg = { nodeWidth: 180, nodeVPad: 10, lineHeight: 16, xGap: 260, vGap: 16, labelGap: 6, labelRoom: 14 };
   let root = buildTree(obj);
 
   // If root is an object with a single key, start from that child so the first box shows that key (e.g., 'glossary')

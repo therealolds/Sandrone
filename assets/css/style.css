@@ -91,3 +91,9 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
 
 /* Controls card should not highlight on hover */
 .card.controls:hover { border-color: var(--border); box-shadow: none; transform: none; }
+
+/* Light theme: increase saturation/contrast for JSON/XML tokens */
+:root[data-theme="light"] .key { color: #1d4ed8; }
+:root[data-theme="light"] .string { color: #15803d; }
+:root[data-theme="light"] .number { color: #b91c1c; }
+:root[data-theme="light"] .punct { color: #334155; }
