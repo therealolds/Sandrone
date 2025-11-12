@@ -53,9 +53,15 @@
           <label><input id="square" type="checkbox" /> Force square (1:1)</label>
           <label>Align
             <select id="align">
-              <option value="left">Left</option>
-              <option value="center" selected>Center</option>
-              <option value="right">Right</option>
+              <option value="top-left">Top left</option>
+              <option value="top-center">Top middle</option>
+              <option value="top-right">Top right</option>
+              <option value="middle-left">Center left</option>
+              <option value="middle-center" selected>Center middle</option>
+              <option value="middle-right">Center right</option>
+              <option value="bottom-left">Bottom left</option>
+              <option value="bottom-center">Bottom middle</option>
+              <option value="bottom-right">Bottom right</option>
             </select>
           </label>
           <label id="q-wrap">JPEG quality
@@ -85,13 +91,14 @@
       const btn = document.getElementById('btn');
       const status = document.getElementById('status');
       const thumbs = document.getElementById('thumbs');
+      let previewToken = 0;
 
       function currentOpts() {
         return {
           format: format.value,
           quality: parseFloat(quality.value) || 0.92,
           square: !!square.checked,
-          align: align.value || 'center',
+          align: align.value || 'middle-center',
         };
       }
 
@@ -113,6 +120,7 @@
       align.addEventListener('change', renderPreview);
 
       async function renderPreview() {
+        const token = ++previewToken;
         thumbs.innerHTML = '';
         const f = file.files?.[0];
         if (!f) return;
@@ -121,6 +129,7 @@
         btn.disabled = true;
         try {
           const parts = await sliceImageFile(f, k, { ...currentOpts() });
+          if (token !== previewToken) return;
           for (const p of parts) {
             const url = URL.createObjectURL(p.blob);
             const div = document.createElement('div');
@@ -135,8 +144,10 @@
           setStatus(`Ready: ${parts.length} slice(s).`);
         } catch (e) {
           console.error(e);
+          if (token !== previewToken) return;
           setStatus((e && e.message) ? e.message : String(e));
         } finally {
+          if (token !== previewToken) return;
           btn.disabled = false;
         }
       }
