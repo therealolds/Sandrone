@@ -55,7 +55,28 @@ function toBlob(canvas, type, quality) {
   });
 }
 
-export async function sliceImageFile(file, k, { format = 'auto', quality = 0.92, square = false, align = 'center' } = {}) {
+function normalizeAlign(value) {
+  const horizontals = ['left', 'center', 'right'];
+  const verticals = ['top', 'middle', 'bottom'];
+  if (!value) return { horiz: 'center', vert: 'middle' };
+  const parts = String(value).toLowerCase().split(/[\s-]+/).filter(Boolean);
+  let horiz = parts.find((p) => horizontals.includes(p));
+  let vert = parts.find((p) => verticals.includes(p));
+  if (!horiz && horizontals.includes(value)) horiz = value;
+  if (!vert && verticals.includes(value)) vert = value;
+  if (!horiz) horiz = 'center';
+  if (!vert) vert = 'middle';
+  return { horiz, vert };
+}
+
+function offsetWithin(full, needed, mode) {
+  if (full <= needed) return 0;
+  if (mode === 'left' || mode === 'top') return 0;
+  if (mode === 'right' || mode === 'bottom') return full - needed;
+  return Math.floor((full - needed) / 2);
+}
+
+export async function sliceImageFile(file, k, { format = 'auto', quality = 0.92, square = false, align = 'middle-center' } = {}) {
   if (!file) throw new Error('No file provided');
   k = Math.max(1, Math.floor(k || 1));
 
@@ -89,13 +110,9 @@ export async function sliceImageFile(file, k, { format = 'auto', quality = 0.92,
       throw new Error('Image too small for requested number of square slices');
     }
     const totalW = side * k;
-    let x0 = 0;
-    if (w > totalW) {
-      if (align === 'left') x0 = 0;
-      else if (align === 'right') x0 = w - totalW;
-      else x0 = Math.floor((w - totalW) / 2); // center default
-    }
-    const y0 = h > side ? Math.floor((h - side) / 2) : 0; // center vertically
+    const { horiz, vert } = normalizeAlign(align);
+    const x0 = offsetWithin(w, totalW, horiz);
+    const y0 = offsetWithin(h, side, vert);
 
     tmp.width = side;
     tmp.height = side;
