@@ -1,4 +1,4 @@
-// JSON Viewer helpers (ES module)
+﻿// JSON Viewer helpers (ES module)
 // - formatJson: pretty-print JSON
 // - renderTree: render interactive collapsible JSON tree
 
@@ -21,6 +21,24 @@ function textFor(value) {
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';
   return String(value);
+}
+
+function appendComma(node) {
+  if (!node) return;
+  const lines = node.querySelectorAll('.line');
+  const target = lines[lines.length - 1] || node;
+  const punct = document.createElement('span');
+  punct.className = 'punct';
+  punct.textContent = ',';
+  target.appendChild(punct);
+}
+
+function setCollapsed(node, collapsed) {
+  if (!node) return;
+  if (!collapsed) node._ensureChildren?.();
+  if (collapsed) node.classList.add('collapsed'); else node.classList.remove('collapsed');
+  if (node._toggle) node._toggle.textContent = collapsed ? '+' : '-';
+  if (node._summary) node._summary.style.display = collapsed ? '' : 'none';
 }
 
 function createScalar(value, key) {
@@ -53,6 +71,10 @@ function createNode(value, key) {
 
   if (!isArray && !isObj) {
     node.appendChild(createScalar(value, key));
+    node._toggle = null;
+    node._summary = null;
+    node._children = null;
+    node._ensureChildren = null;
     return node;
   }
 
@@ -63,10 +85,9 @@ function createNode(value, key) {
   line.className = 'line';
   const toggle = document.createElement('span');
   toggle.className = 'toggle';
-  toggle.textContent = '−';
   toggle.title = 'Collapse/Expand';
-  // Ensure ASCII toggle symbol
   toggle.textContent = '-';
+  node._toggle = toggle;
   line.appendChild(toggle);
 
   if (key !== undefined) {
@@ -89,76 +110,67 @@ function createNode(value, key) {
   summary.className = 'summary';
   summary.style.display = 'none';
   const count = isArray ? value.length : Object.keys(value).length;
-  summary.textContent = isArray ? `… ${count} item${count === 1 ? '' : 's'} …` : `… ${count} key${count === 1 ? '' : 's'} …`;
-  // Normalize summary text to ASCII
   summary.textContent = isArray
     ? `(${count} item${count === 1 ? '' : 's'})`
     : `(${count} key${count === 1 ? '' : 's'})`;
+  node._summary = summary;
   line.appendChild(summary);
 
   node.appendChild(line);
 
   const children = document.createElement('div');
   children.className = 'children';
-
-  if (isArray) {
-    value.forEach((val, idx) => {
-      const child = createNode(val);
-      // Add index decoration as key-like prefix
-      const firstLine = child.querySelector('.line');
-      if (firstLine) {
-        const idxSpan = document.createElement('span');
-        idxSpan.className = 'key';
-        idxSpan.textContent = `[${idx}]`;
-        firstLine.insertBefore(idxSpan, firstLine.firstChild);
-        const colon = document.createElement('span');
-        colon.className = 'punct';
-        colon.textContent = ': ';
-        firstLine.insertBefore(colon, idxSpan.nextSibling);
-      }
-      children.appendChild(child);
-      // Append comma to the child's last line, except after the final item
-      if (idx < value.length - 1) {
-        const lines = child.querySelectorAll('.line');
-        const lastLine = lines[lines.length - 1] || child;
-        const punct = document.createElement('span');
-        punct.className = 'punct';
-        punct.textContent = ',';
-        lastLine.appendChild(punct);
-      }
-    });
-  } else {
-    const keys = Object.keys(value);
-    keys.forEach((k, i) => {
-      const child = createNode(value[k], k);
-      children.appendChild(child);
-      // Append comma to the child's last line, except after the final key
-      if (i < keys.length - 1) {
-        const lines = child.querySelectorAll('.line');
-        const lastLine = lines[lines.length - 1] || child;
-        const punct = document.createElement('span');
-        punct.className = 'punct';
-        punct.textContent = ',';
-        lastLine.appendChild(punct);
-      }
-    });
-  }
-
-  const closing = document.createElement('div');
-  closing.className = 'line';
-  const bracketClose = document.createElement('span');
-  bracketClose.className = 'punct';
-  bracketClose.textContent = close;
-  closing.appendChild(bracketClose);
-  children.appendChild(closing);
-
+  node._children = children;
   node.appendChild(children);
 
-  // Toggle behavior
-  toggle.addEventListener('click', () => {
-    const collapsed = node.classList.toggle('collapsed');
-    toggle.textContent = collapsed ? '+' : '−';
-    summary.style.display = collapsed ? '' : 'none';
+  let childrenBuilt = false;
+  const buildChildren = () => {
+    if (childrenBuilt) return;
+    childrenBuilt = true;
+    const frag = document.createDocumentFragment();
+    if (isArray) {
+      value.forEach((val, idx) => {
+        const child = createNode(val);
+        setCollapsed(child, true);
+        const firstLine = child.querySelector('.line');
+        if (firstLine) {
+          const idxSpan = document.createElement('span');
+          idxSpan.className = 'key';
+          idxSpan.textContent = `[${idx}]`;
+          firstLine.insertBefore(idxSpan, firstLine.firstChild);
+          const colon = document.createElement('span');
+          colon.className = 'punct';
+          colon.textContent = ': ';
+          firstLine.insertBefore(colon, idxSpan.nextSibling);
+        }
+        frag.appendChild(child);
+        if (idx < value.length - 1) appendComma(child);
+      });
+    } else {
+      const keys = Object.keys(value);
+      keys.forEach((k, i) => {
+        const child = createNode(value[k], k);
+        setCollapsed(child, true);
+        frag.appendChild(child);
+        if (i < keys.length - 1) appendComma(child);
+      });
+    }
+    const closing = document.createElement('div');
+    closing.className = 'line';
+    const bracketClose = document.createElement('span');
+    bracketClose.className = 'punct';
+    bracketClose.textContent = close;
+    closing.appendChild(bracketClose);
+    frag.appendChild(closing);
+    children.appendChild(frag);
+  };
+  node._ensureChildren = buildChildren;
+
+  toggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const collapsed = node.classList.contains('collapsed');
+    setCollapsed(node, !collapsed);
   });
 
   return node;
@@ -170,28 +182,32 @@ export function renderTree(container, obj) {
   container.appendChild(createNode(obj));
 }
 
+function expandNodeRecursive(node) {
+  if (!node) return;
+  setCollapsed(node, false);
+  const children = node._children;
+  if (!children) return;
+  children.querySelectorAll(':scope > .node').forEach(expandNodeRecursive);
+}
+
 export function expandAll(container) {
   if (!container) return;
-  container.querySelectorAll('.node.collapsed').forEach(n => {
-    n.classList.remove('collapsed');
-    const t = n.querySelector(':scope > .line .toggle');
-    const s = n.querySelector(':scope > .line .summary');
-    if (t) t.textContent = '−';
-    if (s) s.style.display = 'none';
-  });
+  const root = container.querySelector('.node');
+  if (root) expandNodeRecursive(root);
+}
+
+function collapseNodeRecursive(node) {
+  if (!node) return;
+  setCollapsed(node, true);
+  const children = node._children;
+  if (!children) return;
+  children.querySelectorAll(':scope > .node').forEach(collapseNodeRecursive);
 }
 
 export function collapseAll(container) {
   if (!container) return;
-  container.querySelectorAll('.node').forEach(n => {
-    if (!n.classList.contains('collapsed')) {
-      n.classList.add('collapsed');
-      const t = n.querySelector(':scope > .line .toggle');
-      const s = n.querySelector(':scope > .line .summary');
-      if (t) t.textContent = '+';
-      if (s) s.style.display = '';
-    }
-  });
+  const root = container.querySelector('.node');
+  if (root) collapseNodeRecursive(root);
 }
 
 // -------- Graph (SVG) Renderer --------
@@ -487,3 +503,8 @@ export function enablePanScroll(wrapper) {
 }
 
 export default { formatJson, renderTree, expandAll, collapseAll, renderGraph, fitToContent, enablePanScroll };
+
+
+
+
+
