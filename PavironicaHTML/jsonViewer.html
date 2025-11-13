@@ -129,12 +129,21 @@
 
       let currentView = 'none'; // 'tree' | 'graph' | 'none'
 
+      function renderTreeCollapsedView() {
+        try {
+          renderTree(tree, JSON.parse(input.value));
+          collapseAll(tree);
+        } catch (e) {
+          tree.textContent = (e && e.message) ? e.message : String(e);
+        }
+      }
+
       function showView(mode) {
         currentView = mode;
         if (mode === 'tree') {
           treeCard.classList.remove('hidden');
           graphCard.classList.add('hidden');
-          try { renderTree(tree, JSON.parse(input.value)); } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+          renderTreeCollapsedView();
         } else if (mode === 'graph') {
           graphCard.classList.remove('hidden');
           treeCard.classList.add('hidden');
@@ -156,7 +165,7 @@
           status.textContent = 'Done';
           // Refresh current view if visible
           if (currentView === 'tree') {
-            try { renderTree(tree, JSON.parse(input.value)); } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+            renderTreeCollapsedView();
           } else if (currentView === 'graph') {
             try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
           }
@@ -207,7 +216,7 @@
         input.value = mem[i];
         // Refresh current view if visible
         if (currentView === 'tree') {
-          try { renderTree(tree, JSON.parse(input.value)); } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+          renderTreeCollapsedView();
         } else if (currentView === 'graph') {
           try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
         }
