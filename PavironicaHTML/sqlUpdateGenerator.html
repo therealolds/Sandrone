@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SQL Update Generator · Pavironica</title>
+    <script>(function(){try{const t=localStorage.getItem('theme'); if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+    <link rel="stylesheet" href="../assets/css/style.css" />
+    <style>
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+      header a{color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:6px 10px;border-radius:8px}
+      header a:hover{border-color:var(--accent);color:var(--text)}
+      header h1{margin:0;font-size:18px;letter-spacing:.2px}
+      main{padding:20px;max-width:clamp(1100px,95vw,1600px);margin:0 auto;display:grid;gap:16px}
+      .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+      .controls{display:grid;gap:10px}
+      .controls-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+      .controls-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+      label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+      input[type=text],select,textarea{background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:14px}
+      textarea{width:100%;min-height:220px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:12px}
+      .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#002b36;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer}
+      .btn:disabled{opacity:.6;cursor:not-allowed}
+      .muted{color:var(--muted)}
+      .preview{display:flex;flex-direction:column;gap:8px;font-size:12px}
+      .chip{padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:var(--input);color:var(--text);font-weight:600}
+      .result textarea{min-height:260px}
+      .status{min-height:20px;font-size:12px}
+      .column-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--input);gap:12px;flex-wrap:wrap}
+      .column-name{flex:1 1 auto;min-width:120px}
+      .column-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+      .column-toggle{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.2px}
+      .columns-meta{font-size:12px;color:var(--muted)}
+      .columns-note{font-size:12px;color:var(--muted)}
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../index.html">← Back</a>
+      <h1>SQL Update Generator</h1>
+      <span class="muted">Turn CSV rows into UPDATE statements</span>
+    </header>
+    <main>
+      <div class="card controls">
+        <div class="controls-grid">
+          <label>Delimiter
+            <input id="delimiter" type="text" value=";" maxlength="1" />
+          </label>
+          <label>Table name
+            <input id="table-name" type="text" placeholder="PEOPLE" />
+          </label>
+        </div>
+        <div class="controls-actions">
+          <button id="btn-generate" class="btn">Generate SQL</button>
+          <span id="status" class="status muted"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted" style="margin-bottom:6px;">CSV Source</div>
+        <textarea id="csv-input" placeholder="CODICE;AREA;NOME;COGNOME&#10;1;A;Marco;Rossi"></textarea>
+        <label style="margin-top:8px;">Or upload a CSV file
+          <input type="file" id="file-input" accept=".csv,text/csv,.txt" />
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="muted" style="margin-bottom:6px;">Detected columns</div>
+        <div id="columns-preview" class="preview muted">No columns yet.</div>
+      </div>
+
+      <div class="card result">
+        <div class="muted" style="margin-bottom:6px;">SQL Output</div>
+        <textarea id="sql-output" readonly placeholder="Generated statements will appear here."></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="btn-copy" class="btn" disabled>Copy</button>
+          <span id="summary" class="muted"></span>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { parseCsv, rowsToObjects, generateUpdateStatements } from "../PavironicaJS/sqlUpdateGenerator.js";
+
+      const csvInput = document.getElementById('csv-input');
+      const delimiterInput = document.getElementById('delimiter');
+      const tableInput = document.getElementById('table-name');
+      const btnGenerate = document.getElementById('btn-generate');
+      const btnCopy = document.getElementById('btn-copy');
+      const status = document.getElementById('status');
+      const summary = document.getElementById('summary');
+      const preview = document.getElementById('columns-preview');
+      const fileInput = document.getElementById('file-input');
+      const output = document.getElementById('sql-output');
+
+      let lastParsed = null;
+      const columnsState = Object.create(null); // { column: { quote: bool, where: bool, update: bool } }
+
+      function setStatus(text, warn = false) {
+        status.textContent = text || '';
+        status.style.color = warn ? '#f97316' : 'var(--muted)';
+      }
+
+      function ensureColumnsState(headers) {
+        headers.forEach((h, idx) => {
+          if (!columnsState[h]) {
+            columnsState[h] = {
+              quote: true,
+              where: idx === 0,
+              update: idx !== 0,
+            };
+          } else {
+            const state = columnsState[h];
+            if (typeof state.quote === 'undefined') state.quote = true;
+            if (typeof state.where === 'undefined') state.where = idx === 0;
+            if (typeof state.update === 'undefined') state.update = !state.where;
+          }
+        });
+        Object.keys(columnsState).forEach((key) => {
+          if (!headers.includes(key)) delete columnsState[key];
+        });
+      }
+
+      function createToggle(labelText, checked, onChange) {
+        const label = document.createElement('label');
+        label.className = 'column-toggle';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !!checked;
+        input.addEventListener('change', () => onChange(input.checked));
+        label.appendChild(input);
+        label.append(labelText);
+        return label;
+      }
+
+      function renderPreview(headers, rowCount) {
+        preview.innerHTML = '';
+        if (!headers.length) {
+          preview.textContent = 'No columns yet.';
+          preview.classList.add('muted');
+          return;
+        }
+        preview.classList.remove('muted');
+        headers.forEach((name) => {
+          const state = columnsState[name] ?? (columnsState[name] = { quote: true, where: false, update: true });
+          const row = document.createElement('div');
+          row.className = 'column-row';
+
+          const nameBox = document.createElement('div');
+          nameBox.className = 'column-name';
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = name;
+          nameBox.appendChild(chip);
+
+          const actions = document.createElement('div');
+          actions.className = 'column-actions';
+          actions.appendChild(createToggle('WHERE', state.where, (value) => { state.where = value; }));
+          actions.appendChild(createToggle('Update', state.update, (value) => { state.update = value; }));
+          actions.appendChild(createToggle('Quote', state.quote !== false, (value) => { state.quote = value; }));
+
+          row.appendChild(nameBox);
+          row.appendChild(actions);
+          preview.appendChild(row);
+        });
+        const meta = document.createElement('div');
+        meta.className = 'columns-meta';
+        meta.textContent = `${headers.length} column${headers.length === 1 ? '' : 's'} · ${rowCount} row${rowCount === 1 ? '' : 's'}`;
+        preview.appendChild(meta);
+        const note = document.createElement('div');
+        note.className = 'columns-note';
+        note.textContent = 'Use WHERE to pick keys, Update to include in SET, Quote for strings.';
+        preview.appendChild(note);
+      }
+
+      function getWhereColumns(headers = []) {
+        return headers.filter((h) => columnsState[h]?.where);
+      }
+
+      function buildColumnMaps(headers = []) {
+        const quoteMap = {};
+        const updateMap = {};
+        headers.forEach((h) => {
+          const state = columnsState[h] || {};
+          const where = !!state.where;
+          const quote = state.quote !== false;
+          const update = (typeof state.update === 'undefined') ? !where : !!state.update;
+          quoteMap[h] = quote;
+          updateMap[h] = update;
+        });
+        return { quoteMap, updateMap };
+      }
+
+      function refreshParsing(silent = false) {
+        const delimiter = (delimiterInput.value || '').trim();
+        try {
+          const parsed = parseCsv(csvInput.value || '', { delimiter, hasHeader: true });
+          lastParsed = parsed;
+          if (!delimiter && parsed.delimiter) {
+            delimiterInput.value = parsed.delimiter;
+          }
+          ensureColumnsState(parsed.headers);
+          renderPreview(parsed.headers, parsed.rows.length);
+          if (!silent) {
+            setStatus(parsed.rows.length ? `Ready · ${parsed.rows.length} row${parsed.rows.length === 1 ? '' : 's'}` : 'No data rows', !parsed.rows.length);
+          }
+        } catch (err) {
+          lastParsed = null;
+          renderPreview([], 0);
+          setStatus(err && err.message ? err.message : String(err), true);
+        }
+      }
+
+      csvInput.addEventListener('input', () => refreshParsing());
+      delimiterInput.addEventListener('input', () => refreshParsing(true));
+
+      fileInput.addEventListener('change', (ev) => {
+        const file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          csvInput.value = reader.result || '';
+          refreshParsing();
+          setStatus(`Loaded ${file.name}`);
+        };
+        reader.onerror = () => setStatus('Failed to read file', true);
+        reader.readAsText(file);
+      });
+
+      btnGenerate.addEventListener('click', () => {
+        if (!lastParsed || !lastParsed.rows.length) {
+          setStatus('Add some CSV data first.', true);
+          return;
+        }
+        const tableName = tableInput.value.trim();
+        if (!tableName) {
+          setStatus('Table name is required.', true);
+          return;
+        }
+        const whereColumns = getWhereColumns(lastParsed.headers);
+        if (!whereColumns.length) {
+          setStatus('Pick at least one WHERE column below.', true);
+          return;
+        }
+        try {
+          const records = rowsToObjects(lastParsed.headers, lastParsed.rows);
+          const { quoteMap, updateMap } = buildColumnMaps(lastParsed.headers);
+          const { statements, skipped } = generateUpdateStatements(records, {
+            tableName,
+            whereColumns,
+            columnQuoteMap: quoteMap,
+            columnUpdateMap: updateMap,
+            defaultQuote: true,
+          });
+          output.value = statements.join('\n');
+          btnCopy.disabled = statements.length === 0;
+          if (!statements.length) {
+            summary.textContent = 'Nothing to output (rows skipped).';
+          } else {
+            summary.textContent = `${statements.length} UPDATE${statements.length === 1 ? '' : 's'} ready` + (skipped.length ? ` · skipped ${skipped.length}` : '');
+          }
+          setStatus('Done');
+        } catch (err) {
+          output.value = '';
+          btnCopy.disabled = true;
+          summary.textContent = '';
+          setStatus(err && err.message ? err.message : String(err), true);
+        }
+      });
+
+      btnCopy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(output.value);
+          summary.textContent = 'Copied to clipboard.';
+        } catch (_) {
+          summary.textContent = 'Copy failed.';
+        }
+      });
+
+      refreshParsing(true);
+    </script>
+  </body>
+</html>
