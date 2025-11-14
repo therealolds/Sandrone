@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SQL Update Generator · Pavironica</title>
+    <title>SQL Insert Generator - Pavironica</title>
     <script>(function(){try{const t=localStorage.getItem('theme'); if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
     <link rel="stylesheet" href="../assets/css/style.css" />
     <style>
@@ -38,9 +38,9 @@
   </head>
   <body>
     <header>
-      <a href="../index.html">← Back</a>
-      <h1>SQL Update Generator</h1>
-      <span class="muted">Turn CSV rows into UPDATE statements</span>
+      <a href="../index.html">&larr; Back</a>
+      <h1>SQL Insert Generator</h1>
+      <span class="muted">Turn CSV rows into INSERT statements</span>
     </header>
     <main>
       <div class="card controls">
@@ -73,7 +73,7 @@
 
       <div class="card result">
         <div class="muted" style="margin-bottom:6px;">SQL Output</div>
-        <textarea id="sql-output" readonly placeholder="Generated statements will appear here."></textarea>
+        <textarea id="sql-output" readonly placeholder="Generated INSERT statements will appear here."></textarea>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
           <button id="btn-copy" class="btn" disabled>Copy</button>
           <span id="summary" class="muted"></span>
@@ -82,7 +82,7 @@
     </main>
 
     <script type="module">
-      import { parseCsv, rowsToObjects, generateUpdateStatements } from "../PavironicaJS/sqlUpdateGenerator.js";
+      import { parseCsv, rowsToObjects, generateInsertStatements } from "../PavironicaJS/sqlInsertGenerator.js";
 
       const csvInput = document.getElementById('csv-input');
       const delimiterInput = document.getElementById('delimiter');
@@ -96,7 +96,7 @@
       const output = document.getElementById('sql-output');
 
       let lastParsed = null;
-      const columnsState = Object.create(null); // { column: { quote: bool, where: bool, update: bool } }
+      const columnsState = Object.create(null); // { column: { quote: bool } }
 
       function setStatus(text, warn = false) {
         status.textContent = text || '';
@@ -104,18 +104,11 @@
       }
 
       function ensureColumnsState(headers) {
-        headers.forEach((h, idx) => {
-          if (!columnsState[h]) {
-            columnsState[h] = {
-              quote: true,
-              where: idx === 0,
-              update: idx !== 0,
-            };
-          } else {
-            const state = columnsState[h];
-            if (typeof state.quote === 'undefined') state.quote = true;
-            if (typeof state.where === 'undefined') state.where = idx === 0;
-            if (typeof state.update === 'undefined') state.update = !state.where;
+        headers.forEach((name) => {
+          if (!columnsState[name]) {
+            columnsState[name] = { quote: true };
+          } else if (typeof columnsState[name].quote === 'undefined') {
+            columnsState[name].quote = true;
           }
         });
         Object.keys(columnsState).forEach((key) => {
@@ -144,7 +137,7 @@
         }
         preview.classList.remove('muted');
         headers.forEach((name) => {
-          const state = columnsState[name] ?? (columnsState[name] = { quote: true, where: false, update: true });
+          const state = columnsState[name] ?? (columnsState[name] = { quote: true });
           const row = document.createElement('div');
           row.className = 'column-row';
 
@@ -157,8 +150,6 @@
 
           const actions = document.createElement('div');
           actions.className = 'column-actions';
-          actions.appendChild(createToggle('WHERE', state.where, (value) => { state.where = value; }));
-          actions.appendChild(createToggle('Update', state.update, (value) => { state.update = value; }));
           actions.appendChild(createToggle('Quote', state.quote !== false, (value) => { state.quote = value; }));
 
           row.appendChild(nameBox);
@@ -167,30 +158,21 @@
         });
         const meta = document.createElement('div');
         meta.className = 'columns-meta';
-        meta.textContent = `${headers.length} column${headers.length === 1 ? '' : 's'} · ${rowCount} row${rowCount === 1 ? '' : 's'}`;
+        meta.textContent = `${headers.length} column${headers.length === 1 ? '' : 's'} - ${rowCount} row${rowCount === 1 ? '' : 's'}`;
         preview.appendChild(meta);
         const note = document.createElement('div');
         note.className = 'columns-note';
-        note.textContent = 'Use WHERE to pick keys, Update to include in SET, Quote for strings.';
+        note.textContent = 'Disable Quote for numeric columns so they stay unquoted.';
         preview.appendChild(note);
       }
 
-      function getWhereColumns(headers = []) {
-        return headers.filter((h) => columnsState[h]?.where);
-      }
-
-      function buildColumnMaps(headers = []) {
+      function buildQuoteMap(headers = []) {
         const quoteMap = {};
-        const updateMap = {};
         headers.forEach((h) => {
           const state = columnsState[h] || {};
-          const where = !!state.where;
-          const quote = state.quote !== false;
-          const update = (typeof state.update === 'undefined') ? !where : !!state.update;
-          quoteMap[h] = quote;
-          updateMap[h] = update;
+          quoteMap[h] = state.quote !== false;
         });
-        return { quoteMap, updateMap };
+        return quoteMap;
       }
 
       function refreshParsing(silent = false) {
@@ -204,7 +186,7 @@
           ensureColumnsState(parsed.headers);
           renderPreview(parsed.headers, parsed.rows.length);
           if (!silent) {
-            setStatus(parsed.rows.length ? `Ready · ${parsed.rows.length} row${parsed.rows.length === 1 ? '' : 's'}` : 'No data rows', !parsed.rows.length);
+            setStatus(parsed.rows.length ? `Ready - ${parsed.rows.length} row${parsed.rows.length === 1 ? '' : 's'}` : 'No data rows', !parsed.rows.length);
           }
         } catch (err) {
           lastParsed = null;
@@ -239,28 +221,20 @@
           setStatus('Table name is required.', true);
           return;
         }
-        const whereColumns = getWhereColumns(lastParsed.headers);
-        if (!whereColumns.length) {
-          setStatus('Pick at least one WHERE column below.', true);
-          return;
-        }
         try {
           const records = rowsToObjects(lastParsed.headers, lastParsed.rows);
-          const { quoteMap, updateMap } = buildColumnMaps(lastParsed.headers);
-          const { statements, skipped } = generateUpdateStatements(records, {
+          const quoteMap = buildQuoteMap(lastParsed.headers);
+          const { statements } = generateInsertStatements(records, {
             tableName,
-            whereColumns,
+            columns: lastParsed.headers,
             columnQuoteMap: quoteMap,
-            columnUpdateMap: updateMap,
             defaultQuote: true,
           });
           output.value = statements.join('\n');
           btnCopy.disabled = statements.length === 0;
-          if (!statements.length) {
-            summary.textContent = 'Nothing to output (rows skipped).';
-          } else {
-            summary.textContent = `${statements.length} UPDATE${statements.length === 1 ? '' : 's'} ready` + (skipped.length ? ` · skipped ${skipped.length}` : '');
-          }
+          summary.textContent = statements.length
+            ? `${statements.length} INSERT${statements.length === 1 ? '' : 's'} ready`
+            : 'Nothing to output.';
           setStatus('Done');
         } catch (err) {
           output.value = '';
