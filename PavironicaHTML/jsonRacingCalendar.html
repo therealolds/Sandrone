@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Racing Calendar JSON Generator - Pavironica</title>
+  <script>
+    (function () {
+      try {
+        const t = localStorage.getItem('theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, Noto Sans;
+    }
+
+    header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    header a {
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    header a:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .title-stack {
+      flex: 1 1 auto;
+      min-width: 220px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .small-note {
+      font-size: 12px;
+    }
+
+    main {
+      padding: 20px;
+      max-width: clamp(1100px, 95vw, 1400px);
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: var(--muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      background: var(--input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .controls-actions {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border: none;
+      color: #002b36;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 12px;
+      min-height: 20px;
+      color: var(--muted);
+    }
+
+    .helper {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .file-input-label {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .file-input-label input {
+      padding: 4px 0;
+    }
+
+    .summary-card ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      font-size: 13px;
+    }
+
+    .summary-card ul[data-state="empty"] {
+      color: var(--muted);
+    }
+
+    .summary-card ul[data-state="clear"] {
+      color: var(--muted);
+    }
+
+    .summary-card ul[data-state="warn"] {
+      color: #f97316;
+    }
+
+    .result-card textarea {
+      min-height: 260px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <a href="../index.html">&larr; Back</a>
+    <div class="title-stack">
+      <h1>Racing Calendar JSON Generator</h1>
+      <p>Turn MAIN=1 rows into races and MAIN=0 rows into sessions.</p>
+    </div>
+    <span class="muted small-note">Runs locally</span>
+  </header>
+
+  <main>
+    <div class="card controls-card">
+      <h2>Options</h2>
+      <div class="controls-grid">
+        <label>Championship
+          <input type="text" id="championship" value="Formula 1" placeholder="Formula 1" />
+        </label>
+        <label>Season year
+          <input type="number" id="season-year" min="1950" step="1" />
+        </label>
+        <label>Delimiter
+          <input type="text" id="delimiter" value=";" maxlength="1" />
+        </label>
+      </div>
+      <div class="controls-actions">
+        <button id="btn-generate" class="btn">Generate JSON</button>
+        <span id="status" class="status">Waiting for CSV input.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Calendar CSV</h2>
+      <textarea id="csv-input"
+        placeholder="IDTRACK;NAME;DATE;TIME;MAIN;MAIN_ID&#10;Albert_Park;Australian Grand Prix;16/03/2025;15:00:00;1;Australian Grand Prix&#10;Albert_Park;Free Practice 1;14/03/2025;12:30:00;0;Australian Grand Prix"></textarea>
+      <label class="file-input-label">Or upload a CSV file
+        <input type="file" id="file-input" accept=".csv,text/csv,.txt" />
+      </label>
+      <p class="helper">Expected columns: IDTRACK, NAME, DATE, TIME, MAIN, MAIN_ID. Dates and times can use Excel serial
+        numbers (as in <code>Calendar.csv</code>). MAIN=1 rows become races; MAIN=0 rows attach to the matching race via
+        MAIN_ID or IDTRACK.</p>
+    </div>
+
+    <div class="card summary-card">
+      <h2>Summary</h2>
+      <div id="summary" class="muted">Waiting for CSV input.</div>
+      <ul id="warnings" data-state="empty"></ul>
+    </div>
+
+    <div class="card result-card">
+      <h2>Generated JSON</h2>
+      <textarea id="json-output" readonly placeholder="The RacingCalendar JSON will appear here after generation."></textarea>
+      <div class="controls-actions" style="margin-top: 8px;">
+        <button id="btn-copy" class="btn" disabled>Copy JSON</button>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { buildCalendarFromCsv } from "../PavironicaJS/jsonRacingCalendar.js";
+
+    const csvInput = document.getElementById('csv-input');
+    const delimiterInput = document.getElementById('delimiter');
+    const championshipInput = document.getElementById('championship');
+    const yearInput = document.getElementById('season-year');
+    const generateBtn = document.getElementById('btn-generate');
+    const copyBtn = document.getElementById('btn-copy');
+    const fileInput = document.getElementById('file-input');
+    const status = document.getElementById('status');
+    const summary = document.getElementById('summary');
+    const warnings = document.getElementById('warnings');
+    const output = document.getElementById('json-output');
+
+    if (!yearInput.value) {
+      yearInput.value = new Date().getFullYear();
+    }
+
+    let lastResult = null;
+
+    const pluralize = (count, singular, pluralWord) =>
+      `${count} ${count === 1 ? singular : pluralWord}`;
+
+    function setStatus(message, warn = false) {
+      status.textContent = message || '';
+      status.style.color = warn ? '#f97316' : 'var(--muted)';
+    }
+
+    function renderSummary(result) {
+      warnings.innerHTML = '';
+      warnings.dataset.state = 'empty';
+      if (!result) {
+        summary.textContent = 'Waiting for CSV input.';
+        return;
+      }
+      const { stats, unmatchedSessions } = result;
+      summary.textContent = `${pluralize(stats.races, 'race', 'races')} · ${pluralize(stats.sessions, 'session', 'sessions')}`;
+      if (!unmatchedSessions.length) {
+        warnings.dataset.state = 'clear';
+        const li = document.createElement('li');
+        li.textContent = 'All sessions are linked to a race.';
+        warnings.appendChild(li);
+        return;
+      }
+      warnings.dataset.state = 'warn';
+      unmatchedSessions.slice(0, 5).forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = `Row ${item.rowNumber}: "${item.session}" has no parent (${item.target}).`;
+        warnings.appendChild(li);
+      });
+      if (unmatchedSessions.length > 5) {
+        const remaining = unmatchedSessions.length - 5;
+        const li = document.createElement('li');
+        li.textContent = `${remaining} more session${remaining === 1 ? '' : 's'} without parent.`;
+        warnings.appendChild(li);
+      }
+    }
+
+    generateBtn.addEventListener('click', () => {
+      const raw = csvInput.value || '';
+      if (!raw.trim()) {
+        setStatus('Paste or upload a CSV first.', true);
+        return;
+      }
+      try {
+        const result = buildCalendarFromCsv(raw, {
+          delimiter: delimiterInput.value,
+          championship: championshipInput.value,
+          year: yearInput.value,
+        });
+        lastResult = result;
+        output.value = JSON.stringify(result.calendar, null, 2);
+        copyBtn.disabled = output.value.length === 0;
+        setStatus('Calendar generated.');
+        renderSummary(result);
+        if (!delimiterInput.value && result.detectedDelimiter) {
+          delimiterInput.value = result.detectedDelimiter;
+        }
+      } catch (err) {
+        lastResult = null;
+        output.value = '';
+        copyBtn.disabled = true;
+        renderSummary(null);
+        setStatus(err && err.message ? err.message : String(err), true);
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      if (!output.value) return;
+      try {
+        await navigator.clipboard.writeText(output.value);
+        setStatus('JSON copied to clipboard.');
+      } catch (err) {
+        setStatus('Copy failed.', true);
+      }
+    });
+
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        csvInput.value = reader.result || '';
+        lastResult = null;
+        renderSummary(null);
+        setStatus(`Loaded ${file.name}`);
+      };
+      reader.onerror = () => setStatus('Failed to read file.', true);
+      reader.readAsText(file);
+    });
+
+    csvInput.addEventListener('input', () => {
+      lastResult = null;
+      renderSummary(null);
+    });
+  </script>
+</body>
+
+</html>
