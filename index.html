@@ -41,6 +41,21 @@
             margin: 6px 0 0;
         }
 
+        /* Make header link look like plain text */
+        .header-left a {
+            border: none;
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .header-left a:hover {
+            color: var(--accent-2);
+            text-decoration: underline;
+        }
+
         .header-center {
             justify-self: center;
             text-align: center;

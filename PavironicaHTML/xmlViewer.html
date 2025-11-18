@@ -42,6 +42,21 @@
       .children { margin-left: 18px; border-left: 1px dashed var(--guide); padding-left: 8px; }
       .summary { color: var(--muted); }
       .collapsed > .children { display: none; }
+
+      /* Table view styles */
+      .table-view { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+      .table-node { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 8px; }
+      .table-summary { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); }
+      .table-summary::-webkit-details-marker { color: var(--muted); }
+      .table-tag { padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
+      .table-attr { padding: 2px 6px; border-radius: 6px; background: var(--card); border: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+      .table-body { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+      .table-grid { width: 100%; border-collapse: collapse; }
+      .table-grid td { border: 1px solid var(--border); padding: 4px 6px; }
+      .table-key { width: 180px; font-weight: 700; background: var(--card); }
+      .table-val { word-break: break-word; }
+      .table-text { padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
+      .table-children { display: flex; flex-direction: column; gap: 8px; }
     </style>
   </head>
   <body>
@@ -56,6 +71,7 @@
         <label>XML file <input id="file" type="file" accept="text/xml,application/xml,.xml,.txt" /></label>
         <button id="btn-format" class="btn">Format</button>
         <button id="btn-tree-view" class="btn" title="Show interactive tree">Interactive view</button>
+        <button id="btn-table-view" class="btn" title="Show table view">Table view</button>
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
         <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
@@ -80,6 +96,11 @@
         <div id="tree" class="tree"></div>
       </div>
 
+      <div id="table-card" class="card result hidden">
+        <div class="muted" style="margin-bottom:8px;">Table View</div>
+        <div id="table-view" class="table-view"></div>
+      </div>
+
       <div id="graph-card" class="card result hidden">
         <div class="muted" style="margin-bottom:8px;">Graph View</div>
         <div id="graph-wrap" style="overflow:auto; max-width:100%; max-height:60vh; border:1px dashed var(--border); border-radius:8px;">
@@ -91,19 +112,22 @@
     </main>
 
     <script type="module">
-      import { formatXml, renderXmlTree, expandAll, collapseAll, renderXmlGraph as renderGraph, fitToContent, enablePanScroll } from "../PavironicaJS/xmlViewer.js";
+      import { formatXml, renderXmlTree, expandAll, collapseAll, renderXmlGraph as renderGraph, renderXmlTable, setTableViewOpen, fitToContent, enablePanScroll } from "../PavironicaJS/xmlViewer.js";
 
       const input = document.getElementById('input');
       const file = document.getElementById('file');
       const indent = document.getElementById('indent');
       const btnFormat = document.getElementById('btn-format');
       const btnTree = document.getElementById('btn-tree-view');
+      const btnTable = document.getElementById('btn-table-view');
       const btnExpand = document.getElementById('btn-expand');
       const btnCollapse = document.getElementById('btn-collapse');
       const btnGraph = document.getElementById('btn-graph-view');
       const graphSvg = document.getElementById('graph');
       const graphWrap = document.getElementById('graph-wrap');
       const graphCard = document.getElementById('graph-card');
+      const tableCard = document.getElementById('table-card');
+      const tableView = document.getElementById('table-view');
       const status = document.getElementById('status');
       const treeCard = document.getElementById('tree-card');
       const tree = document.getElementById('tree');
@@ -142,6 +166,16 @@
             } catch (e) {
               tree.textContent = (e && e.message) ? e.message : String(e);
             }
+          } else if (currentView === 'table') {
+            try {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString((input.value || '').trim(), 'application/xml');
+              const err = doc.querySelector('parsererror');
+              if (err) throw new Error(err.textContent || 'Invalid XML');
+              renderXmlTable(tableView, doc.documentElement);
+            } catch (e) {
+              tableView.textContent = (e && e.message) ? e.message : String(e);
+            }
           }
         } catch (err) {
           console.error(err);
@@ -165,6 +199,27 @@
           currentView = 'tree';
           status.textContent = 'Interactive view ready.';
           graphCard.classList.add('hidden');
+          tableCard.classList.add('hidden');
+        } catch (e) {
+          status.textContent = 'Error';
+          alert((e && e.message) ? e.message : String(e));
+        }
+      });
+
+      btnTable.addEventListener('click', () => {
+        status.textContent = 'Parsing...';
+        tableView.innerHTML = '';
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString((input.value || '').trim(), 'application/xml');
+          const err = doc.querySelector('parsererror');
+          if (err) throw new Error(err.textContent || 'Invalid XML');
+          renderXmlTable(tableView, doc.documentElement);
+          tableCard.classList.remove('hidden');
+          treeCard.classList.add('hidden');
+          graphCard.classList.add('hidden');
+          currentView = 'table';
+          status.textContent = 'Table view ready.';
         } catch (e) {
           status.textContent = 'Error';
           alert((e && e.message) ? e.message : String(e));
@@ -182,6 +237,7 @@
           renderGraph(graphSvg, doc.documentElement);
           graphCard.classList.remove('hidden');
           treeCard.classList.add('hidden');
+          tableCard.classList.add('hidden');
           currentView = 'graph';
           status.textContent = 'Graph ready.';
           fitToContent(graphSvg);
@@ -193,10 +249,12 @@
 
       btnExpand.addEventListener('click', () => {
         if (currentView === 'tree') expandAll(tree);
+        else if (currentView === 'table') setTableViewOpen(tableView, true);
         else if (currentView === 'graph') graphSvg._graphCtl && graphSvg._graphCtl.expandAll();
       });
       btnCollapse.addEventListener('click', () => {
         if (currentView === 'tree') collapseAll(tree);
+        else if (currentView === 'table') setTableViewOpen(tableView, false);
         else if (currentView === 'graph') graphSvg._graphCtl && graphSvg._graphCtl.collapseAll();
       });
 
@@ -223,6 +281,14 @@
             if (err) throw new Error(err.textContent || 'Invalid XML');
             renderXmlTree(tree, doc.documentElement);
           } catch (e) { tree.textContent = (e && e.message) ? e.message : String(e); }
+        } else if (currentView === 'table') {
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString((input.value || '').trim(), 'application/xml');
+            const err = doc.querySelector('parsererror');
+            if (err) throw new Error(err.textContent || 'Invalid XML');
+            renderXmlTable(tableView, doc.documentElement);
+          } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
         } else if (currentView === 'graph') {
           try {
             while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild);

@@ -46,6 +46,21 @@
       .children { margin-left: 18px; border-left: 1px dashed var(--guide); padding-left: 8px; }
       .summary { color: var(--muted); }
       .collapsed > .children { display: none; }
+
+      /* Table view styles */
+      .table-view { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+      .table-node { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 8px; }
+      .table-summary { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); }
+      .table-summary::-webkit-details-marker { color: var(--muted); }
+      .table-tag { padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
+      .table-attr { padding: 2px 6px; border-radius: 6px; background: var(--card); border: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+      .table-body { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+      .table-grid { width: 100%; border-collapse: collapse; }
+      .table-grid td { border: 1px solid var(--border); padding: 4px 6px; }
+      .table-key { width: 180px; font-weight: 700; background: var(--card); }
+      .table-val { word-break: break-word; }
+      .table-text { padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
+      .table-children { display: flex; flex-direction: column; gap: 8px; }
     </style>
   </head>
   <body>
@@ -60,6 +75,7 @@
         <label>JSON file <input id="file" type="file" accept="application/json,.json,.txt" /></label>
         <button id="btn-format" class="btn">Format</button>
         <button id="btn-tree-view" class="btn" title="Show interactive tree">Interactive view</button>
+        <button id="btn-table-view" class="btn" title="Show table view">Table view</button>
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
         <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
@@ -84,6 +100,11 @@
         <div id="tree" class="tree"></div>
       </div>
 
+      <div id="table-card" class="card result hidden">
+        <div class="muted" style="margin-bottom:8px;">Table View</div>
+        <div id="table-view" class="table-view"></div>
+      </div>
+
       <div id="graph-card" class="card hidden">
         <div class="muted" style="margin-bottom:8px;">Graph View</div>
         <div id="graph-wrap" style="height:520px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:
@@ -96,7 +117,7 @@
     </main>
 
     <script type="module">
-      import { formatJson, renderTree, expandAll, collapseAll, renderGraph, fitToContent, enablePanScroll } from "../PavironicaJS/jsonViewer.js";
+      import { formatJson, renderTree, expandAll, collapseAll, renderGraph, renderJsonTable, setTableViewOpen, fitToContent, enablePanScroll } from "../PavironicaJS/jsonViewer.js";
 
       const file   = document.getElementById('file');
       const input  = document.getElementById('input');
@@ -115,6 +136,9 @@
       const memBtn1 = document.getElementById('mem-1');
       const memBtn2 = document.getElementById('mem-2');
       const memBtn3 = document.getElementById('mem-3');
+      const btnTableView = document.getElementById('btn-table-view');
+      const tableCard = document.getElementById('table-card');
+      const tableView = document.getElementById('table-view');
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
@@ -127,7 +151,7 @@
 
       file.addEventListener('change', () => readIntoText(file, input));
 
-      let currentView = 'none'; // 'tree' | 'graph' | 'none'
+      let currentView = 'none'; // 'tree' | 'graph' | 'table' | 'none'
 
       function renderTreeCollapsedView() {
         try {
@@ -142,14 +166,22 @@
         currentView = mode;
         if (mode === 'tree') {
           treeCard.classList.remove('hidden');
+          tableCard.classList.add('hidden');
           graphCard.classList.add('hidden');
           renderTreeCollapsedView();
+        } else if (mode === 'table') {
+          tableCard.classList.remove('hidden');
+          treeCard.classList.add('hidden');
+          graphCard.classList.add('hidden');
+          try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
         } else if (mode === 'graph') {
           graphCard.classList.remove('hidden');
+          tableCard.classList.add('hidden');
           treeCard.classList.add('hidden');
           try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { /* show minimal message */ while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
         } else {
           treeCard.classList.add('hidden');
+          tableCard.classList.add('hidden');
           graphCard.classList.add('hidden');
         }
       }
@@ -166,6 +198,8 @@
           // Refresh current view if visible
           if (currentView === 'tree') {
             renderTreeCollapsedView();
+          } else if (currentView === 'table') {
+            try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
           } else if (currentView === 'graph') {
             try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
           }
@@ -174,18 +208,22 @@
           status.textContent = 'Error';
           // Keep content; show error under active view if any
           if (currentView === 'tree') tree.textContent = (err && err.message) ? err.message : String(err);
+          else if (currentView === 'table') tableView.textContent = (err && err.message) ? err.message : String(err);
         } finally {
           btn.disabled = false;
         }
       });
 
       btnTreeView.addEventListener('click', () => showView('tree'));
+      btnTableView.addEventListener('click', () => showView('table'));
       btnGraphView.addEventListener('click', () => showView('graph'));
 
       // Expand/Collapse buttons apply to the current view
       btnExpand.addEventListener('click', () => {
         if (currentView === 'tree') {
           expandAll(tree);
+        } else if (currentView === 'table') {
+          setTableViewOpen(tableView, true);
         } else if (currentView === 'graph') {
           graphSvg._graphCtl && graphSvg._graphCtl.expandAll();
         }
@@ -193,6 +231,8 @@
       btnCollapse.addEventListener('click', () => {
         if (currentView === 'tree') {
           collapseAll(tree);
+        } else if (currentView === 'table') {
+          setTableViewOpen(tableView, false);
         } else if (currentView === 'graph') {
           graphSvg._graphCtl && graphSvg._graphCtl.collapseAll();
         }
@@ -217,6 +257,8 @@
         // Refresh current view if visible
         if (currentView === 'tree') {
           renderTreeCollapsedView();
+        } else if (currentView === 'table') {
+          try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
         } else if (currentView === 'graph') {
           try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
         }

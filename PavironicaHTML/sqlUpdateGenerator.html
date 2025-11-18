@@ -69,15 +69,20 @@
       <div class="card">
         <div class="muted" style="margin-bottom:6px;">Detected columns</div>
         <div id="columns-preview" class="preview muted">No columns yet.</div>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;">
+          <button id="btn-generate-columns" class="btn">Generate SQL</button>
+        </div>
       </div>
 
       <div class="card result">
-        <div class="muted" style="margin-bottom:6px;">SQL Output</div>
-        <textarea id="sql-output" readonly placeholder="Generated statements will appear here."></textarea>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button id="btn-copy" class="btn" disabled>Copy</button>
-          <span id="summary" class="muted"></span>
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;">
+          <div class="muted">SQL Output</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button id="btn-copy" class="btn" disabled>Copy</button>
+            <span id="summary" class="muted"></span>
+          </div>
         </div>
+        <textarea id="sql-output" readonly placeholder="Generated statements will appear here."></textarea>
       </div>
     </main>
 
@@ -88,6 +93,7 @@
       const delimiterInput = document.getElementById('delimiter');
       const tableInput = document.getElementById('table-name');
       const btnGenerate = document.getElementById('btn-generate');
+      const btnGenerateColumns = document.getElementById('btn-generate-columns');
       const btnCopy = document.getElementById('btn-copy');
       const status = document.getElementById('status');
       const summary = document.getElementById('summary');
@@ -229,7 +235,7 @@
         reader.readAsText(file);
       });
 
-      btnGenerate.addEventListener('click', () => {
+      const handleGenerate = () => {
         if (!lastParsed || !lastParsed.rows.length) {
           setStatus('Add some CSV data first.', true);
           return;
@@ -268,7 +274,10 @@
           summary.textContent = '';
           setStatus(err && err.message ? err.message : String(err), true);
         }
-      });
+      };
+
+      btnGenerate.addEventListener('click', handleGenerate);
+      btnGenerateColumns.addEventListener('click', handleGenerate);
 
       btnCopy.addEventListener('click', async () => {
         try {

@@ -246,10 +246,10 @@ function measureLayout(node, cfg, expanded) {
   if (!node.children.length) { node._subH = selfH; return node._subH; }
   if (!expanded.has(node.id)) { node._subH = selfH; return node._subH; }
   let sum = 0;
-  for (const { child } of node.children) {
-    sum += measureLayout(child, cfg, expanded) + cfg.vGap;
-  }
-  sum -= cfg.vGap;
+  node.children.forEach(({ child }, idx) => {
+    sum += measureLayout(child, cfg, expanded);
+    if (idx < node.children.length - 1) sum += cfg.vGap + (cfg.labelRoom || 0);
+  });
   node._subH = Math.max(selfH, sum);
   return node._subH;
 }
@@ -258,10 +258,10 @@ function layout(node, cfg, x0, y0, expanded) {
   node.x = x0;
   if (!node.children.length || !expanded.has(node.id)) { node.y = y0 + node._subH / 2; return; }
   let curY = y0;
-  for (const e of node.children) {
+  node.children.forEach((e, idx) => {
     layout(e.child, cfg, x0 + cfg.xGap, curY, expanded);
-    curY += e.child._subH + cfg.vGap;
-  }
+    if (idx < node.children.length - 1) curY += e.child._subH + cfg.vGap + (cfg.labelRoom || 0);
+  });
   const first = node.children[0].child;
   const last = node.children[node.children.length - 1].child;
   node.y = (first.y + last.y) / 2;
@@ -317,7 +317,7 @@ function drawEdge(g, parent, child, label, cfg) {
     const childLines = xmlNodeLabel(child);
     const childH = childLines.length * cfg.lineHeight + cfg.nodeVPad * 2;
     const lx = x2 + cfg.nodeWidth / 2;
-    const ly = y2 - childH / 2 - 6;
+    const ly = y2 - childH / 2 - (cfg.labelGap || 6);
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', String(lx));
     text.setAttribute('y', String(ly));
@@ -357,7 +357,7 @@ function visibleNodes(root, expanded) {
 
 export function renderGraph(svg, rootElem) {
   if (!svg || !rootElem) return;
-  const cfg = { nodeWidth: 200, nodeVPad: 10, lineHeight: 16, xGap: 260, vGap: 16 };
+  const cfg = { nodeWidth: 180, nodeVPad: 10, lineHeight: 16, xGap: 280, vGap: 18, labelGap: 8, labelRoom: 14 };
   const root = buildXmlTree(rootElem);
   const allById = new Map(collectNodes(root).map(n => [n.id, n]));
   const expanded = new Set(); // collapsed by default
@@ -464,6 +464,95 @@ export function enablePanScroll(wrapper) {
   wrapper.addEventListener('mousedown', onDown);
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
+}
+
+function collectText(node) {
+  return Array.from(node.childNodes || [])
+    .filter((n) => n.nodeType === Node.TEXT_NODE)
+    .map((n) => n.nodeValue || '')
+    .join('')
+    .trim();
+}
+
+function buildTableNode(elem) {
+  const details = document.createElement('details');
+  details.className = 'table-node';
+  details.open = false;
+
+  const summary = document.createElement('summary');
+  summary.className = 'table-summary';
+
+  const tag = document.createElement('span');
+  tag.className = 'table-tag';
+  tag.textContent = elem.tagName;
+  summary.appendChild(tag);
+
+  const attrs = Array.from(elem.attributes || []).sort((a, b) => a.name.localeCompare(b.name));
+  attrs.forEach((a) => {
+    const badge = document.createElement('span');
+    badge.className = 'table-attr';
+    badge.textContent = `@${a.name}=${a.value}`;
+    summary.appendChild(badge);
+  });
+
+  details.appendChild(summary);
+
+  const body = document.createElement('div');
+  body.className = 'table-body';
+
+  if (attrs.length) {
+    const attrTable = document.createElement('table');
+    attrTable.className = 'table-grid';
+    attrs.forEach((a) => {
+      const row = document.createElement('tr');
+      const key = document.createElement('td');
+      key.className = 'table-key';
+      key.textContent = `@${a.name}`;
+      const val = document.createElement('td');
+      val.className = 'table-val';
+      val.textContent = a.value;
+      row.appendChild(key);
+      row.appendChild(val);
+      attrTable.appendChild(row);
+    });
+    body.appendChild(attrTable);
+  }
+
+  const text = collectText(elem);
+  if (text) {
+    const textRow = document.createElement('div');
+    textRow.className = 'table-text';
+    textRow.textContent = text;
+    body.appendChild(textRow);
+  }
+
+  const children = Array.from(elem.childNodes || []).filter((n) => n.nodeType === Node.ELEMENT_NODE);
+  if (children.length) {
+    const childWrap = document.createElement('div');
+    childWrap.className = 'table-children';
+    children.forEach((child) => {
+      childWrap.appendChild(buildTableNode(child));
+    });
+    body.appendChild(childWrap);
+  }
+
+  details.appendChild(body);
+  return details;
+}
+
+export function renderXmlTable(target, rootElem) {
+  if (!target) return;
+  target.innerHTML = '';
+  if (!rootElem) {
+    target.textContent = 'No XML to render.';
+    return;
+  }
+  target.appendChild(buildTableNode(rootElem));
+}
+
+export function setTableViewOpen(target, open) {
+  if (!target) return;
+  target.querySelectorAll('details.table-node').forEach((d) => { d.open = open; });
 }
 
 export { renderGraph as renderXmlGraph };
