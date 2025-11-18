@@ -210,6 +210,81 @@ export function collapseAll(container) {
   if (root) collapseNodeRecursive(root);
 }
 
+// -------- Table View Renderer --------
+
+function describeValue(value) {
+  if (Array.isArray(value)) return `[${value.length}] array`;
+  if (value === null) return 'null';
+  if (typeof value === 'object') return `{${Object.keys(value).length}} object`;
+  return typeof value;
+}
+
+function buildTableNode(value, label = undefined) {
+  const details = document.createElement('details');
+  details.className = 'table-node';
+  details.open = false;
+
+  const summary = document.createElement('summary');
+  summary.className = 'table-summary';
+
+  if (label !== undefined) {
+    const tag = document.createElement('span');
+    tag.className = 'table-tag';
+    tag.textContent = String(label);
+    summary.appendChild(tag);
+  }
+
+  const typeBadge = document.createElement('span');
+  typeBadge.className = 'table-attr';
+  typeBadge.textContent = describeValue(value);
+  summary.appendChild(typeBadge);
+
+  details.appendChild(summary);
+
+  const body = document.createElement('div');
+  body.className = 'table-body';
+
+  if (value !== null && typeof value === 'object') {
+    const childWrap = document.createElement('div');
+    childWrap.className = 'table-children';
+    if (Array.isArray(value)) {
+      value.forEach((item, idx) => {
+        childWrap.appendChild(buildTableNode(item, `[${idx}]`));
+      });
+    } else {
+      Object.keys(value).forEach((k) => {
+        childWrap.appendChild(buildTableNode(value[k], k));
+      });
+    }
+    if (!childWrap.childElementCount) {
+      const empty = document.createElement('div');
+      empty.className = 'table-text';
+      empty.textContent = '(empty)';
+      childWrap.appendChild(empty);
+    }
+    body.appendChild(childWrap);
+  } else {
+    const textRow = document.createElement('div');
+    textRow.className = 'table-text';
+    textRow.textContent = typeof value === 'string' ? value : JSON.stringify(value);
+    body.appendChild(textRow);
+  }
+
+  details.appendChild(body);
+  return details;
+}
+
+export function renderJsonTable(target, value) {
+  if (!target) return;
+  target.innerHTML = '';
+  target.appendChild(buildTableNode(value, 'root'));
+}
+
+export function setTableViewOpen(target, open) {
+  if (!target) return;
+  target.querySelectorAll('details.table-node').forEach((d) => { d.open = open; });
+}
+
 // -------- Graph (SVG) Renderer --------
 
 function buildTree(obj, key = undefined, idStart = { v: 1 }, depth = 0) {
