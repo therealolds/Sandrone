@@ -56,7 +56,19 @@
       .table-key { width: 180px; font-weight: 700; background: var(--card); }
       .table-val { word-break: break-word; }
       .table-text { padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
-      .table-children { display: flex; flex-direction: column; gap: 8px; }
+      .table-children { display: flex; flex-direction: column; gap: 10px; }
+      .table-group { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 4px 6px 6px; scroll-margin-top: 80px; }
+      .table-group-title { font-weight: 600; margin: 0 0 6px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 6px; list-style: none; }
+      .table-group-title::-webkit-details-marker,
+      .table-group-title::marker { color: var(--muted); }
+      .table-child-table { width: 100%; border-collapse: collapse; }
+      .table-child-table th { border: 1px solid var(--border); padding: 4px 6px; text-align: left; background: var(--result); color: var(--muted); font-weight: 600; }
+      .table-child-table td { border: 1px solid var(--border); padding: 4px 6px; }
+      .table-index { width: 32px; text-align: center; font-weight: 600; }
+      .table-nested > .table-children { margin-top: 0; }
+      .table-nested { min-width: 160px; }
+      .table-node { scroll-margin-top: 80px; }
+      .table-focus { outline: 2px solid var(--accent); outline-offset: 2px; }
     </style>
   </head>
   <body>
@@ -75,6 +87,9 @@
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
         <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
+        <label>Table path <input id="table-path" type="text" placeholder="body/book/content_item" /></label>
+        <button id="btn-open-table" class="btn" title="Open the matching table group">Open Table</button>
+        <button id="btn-close-table" class="btn" title="Close the matching table group">Close Table</button>
         <span id="status" class="muted"></span>
       </div>
 
@@ -112,7 +127,7 @@
     </main>
 
     <script type="module">
-      import { formatXml, renderXmlTree, expandAll, collapseAll, renderXmlGraph as renderGraph, renderXmlTable, setTableViewOpen, fitToContent, enablePanScroll } from "../PavironicaJS/xmlViewer.js";
+      import { formatXml, renderXmlTree, expandAll, collapseAll, renderXmlGraph as renderGraph, renderXmlTable, setTableViewOpen, toggleTablePath, fitToContent, enablePanScroll } from "../PavironicaJS/xmlViewer.js";
 
       const input = document.getElementById('input');
       const file = document.getElementById('file');
@@ -123,6 +138,9 @@
       const btnExpand = document.getElementById('btn-expand');
       const btnCollapse = document.getElementById('btn-collapse');
       const btnGraph = document.getElementById('btn-graph-view');
+      const tablePath = document.getElementById('table-path');
+      const btnOpenTable = document.getElementById('btn-open-table');
+      const btnCloseTable = document.getElementById('btn-close-table');
       const graphSvg = document.getElementById('graph');
       const graphWrap = document.getElementById('graph-wrap');
       const graphCard = document.getElementById('graph-card');
@@ -256,6 +274,45 @@
         if (currentView === 'tree') collapseAll(tree);
         else if (currentView === 'table') setTableViewOpen(tableView, false);
         else if (currentView === 'graph') graphSvg._graphCtl && graphSvg._graphCtl.collapseAll();
+      });
+
+      function ensureTableDom() {
+        if (tableView.firstChild) return true;
+        btnTable.click();
+        return Boolean(tableView.firstChild);
+      }
+
+      function toggleSpecificTable(open) {
+        const pathValue = (tablePath.value || '').trim();
+        if (!pathValue) {
+          status.textContent = 'Enter a table path (e.g. body/book).';
+          tablePath.focus();
+          return;
+        }
+        if (!ensureTableDom()) {
+          status.textContent = 'Load XML and build the table view first.';
+          return;
+        }
+        if (currentView !== 'table') btnTable.click();
+        const nodes = toggleTablePath(tableView, pathValue, open);
+        if (!nodes.length) {
+          status.textContent = `No table found for "${pathValue}".`;
+          return;
+        }
+        const targetNode = nodes[0];
+        targetNode.classList.add('table-focus');
+        setTimeout(() => targetNode.classList.remove('table-focus'), 1200);
+        targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        status.textContent = `${open ? 'Opened' : 'Closed'} ${pathValue}.`;
+      }
+
+      btnOpenTable.addEventListener('click', () => toggleSpecificTable(true));
+      btnCloseTable.addEventListener('click', () => toggleSpecificTable(false));
+      tablePath.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          toggleSpecificTable(true);
+        }
       });
 
       enablePanScroll(graphWrap);

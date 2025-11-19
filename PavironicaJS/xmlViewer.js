@@ -474,10 +474,127 @@ function collectText(node) {
     .trim();
 }
 
-function buildTableNode(elem) {
+function buildPathId(parts) {
+  return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean).join('/');
+}
+
+function normalizePathParts(value) {
+  if (Array.isArray(value)) return value.map((p) => String(p).trim().toLowerCase()).filter(Boolean);
+  return String(value || '')
+    .split(/[>/]+/)
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function ensureAncestorDetailsOpen(node) {
+  let parent = node ? node.parentElement : null;
+  while (parent) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+    parent = parent.parentElement;
+  }
+}
+
+function getChildElements(node) {
+  return Array.from(node.childNodes || []).filter((n) => n.nodeType === Node.ELEMENT_NODE);
+}
+
+function formatAttrList(elem) {
+  const attrs = Array.from(elem.attributes || []);
+  if (!attrs.length) return '';
+  return attrs
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((a) => `@${a.name}=${a.value}`)
+    .join('\n');
+}
+
+function groupChildrenByTag(elem) {
+  const groups = new Map();
+  getChildElements(elem).forEach((child) => {
+    const tag = child.tagName;
+    if (!groups.has(tag)) groups.set(tag, []);
+    groups.get(tag).push(child);
+  });
+  return Array.from(groups.entries());
+}
+
+function buildChildGroups(elem, path = []) {
+  const grouped = groupChildrenByTag(elem);
+  if (!grouped.length) return null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'table-children';
+
+  grouped.forEach(([tag, nodes]) => {
+    const section = document.createElement('details');
+    section.className = 'table-group';
+    section.open = false;
+    const groupPath = [...path, tag];
+    section.dataset.path = buildPathId(groupPath);
+
+    const heading = document.createElement('summary');
+    heading.className = 'table-group-title';
+    heading.textContent = `<${tag}> (${nodes.length})`;
+    section.appendChild(heading);
+
+    const table = document.createElement('table');
+    table.className = 'table-grid table-child-table';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['#', 'Attributes', 'Text', 'Children'].forEach((label) => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    nodes.forEach((node, idx) => {
+      const row = document.createElement('tr');
+
+      const indexCell = document.createElement('td');
+      indexCell.className = 'table-index';
+      indexCell.textContent = String(idx + 1);
+      row.appendChild(indexCell);
+
+      const attrCell = document.createElement('td');
+      attrCell.className = 'table-val';
+      attrCell.textContent = formatAttrList(node) || '-';
+      row.appendChild(attrCell);
+
+      const textCell = document.createElement('td');
+      textCell.className = 'table-val';
+      textCell.textContent = collectText(node) || '-';
+      row.appendChild(textCell);
+
+      const nestedCell = document.createElement('td');
+      nestedCell.className = 'table-nested';
+      const nestedGroups = buildChildGroups(node, groupPath);
+      if (nestedGroups) {
+        nestedCell.appendChild(nestedGroups);
+      } else {
+        nestedCell.textContent = '-';
+      }
+      row.appendChild(nestedCell);
+
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    section.appendChild(table);
+    wrap.appendChild(section);
+  });
+
+  return wrap;
+}
+
+function buildTableNode(elem, path = null) {
+  const currentPath = path && path.length ? path : [elem.tagName];
   const details = document.createElement('details');
   details.className = 'table-node';
   details.open = false;
+  details.dataset.path = buildPathId(currentPath);
 
   const summary = document.createElement('summary');
   summary.className = 'table-summary';
@@ -526,15 +643,8 @@ function buildTableNode(elem) {
     body.appendChild(textRow);
   }
 
-  const children = Array.from(elem.childNodes || []).filter((n) => n.nodeType === Node.ELEMENT_NODE);
-  if (children.length) {
-    const childWrap = document.createElement('div');
-    childWrap.className = 'table-children';
-    children.forEach((child) => {
-      childWrap.appendChild(buildTableNode(child));
-    });
-    body.appendChild(childWrap);
-  }
+  const childGroups = buildChildGroups(elem, currentPath);
+  if (childGroups) body.appendChild(childGroups);
 
   details.appendChild(body);
   return details;
@@ -547,12 +657,30 @@ export function renderXmlTable(target, rootElem) {
     target.textContent = 'No XML to render.';
     return;
   }
-  target.appendChild(buildTableNode(rootElem));
+  target.appendChild(buildTableNode(rootElem, [rootElem.tagName]));
 }
 
 export function setTableViewOpen(target, open) {
   if (!target) return;
-  target.querySelectorAll('details.table-node').forEach((d) => { d.open = open; });
+  target.querySelectorAll('details.table-node, details.table-group').forEach((d) => { d.open = open; });
+}
+
+function findTablesByPath(target, pathInput) {
+  if (!target) return [];
+  const parts = normalizePathParts(pathInput);
+  if (!parts.length) return [];
+  const desired = buildPathId(parts);
+  return Array.from(target.querySelectorAll('details.table-node, details.table-group'))
+    .filter((node) => (node.dataset.path || '') === desired);
+}
+
+export function toggleTablePath(target, pathInput, open) {
+  const nodes = findTablesByPath(target, pathInput);
+  nodes.forEach((node) => {
+    if (open) ensureAncestorDetailsOpen(node);
+    node.open = open;
+  });
+  return nodes;
 }
 
 export { renderGraph as renderXmlGraph };
