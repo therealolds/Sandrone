@@ -28,6 +28,7 @@
       .muted { color: var(--muted); }
       .ok { color: #34d399; }
       .warn { color: #fbbf24; }
+      .jump-top { position: fixed; right: 20px; bottom: 20px; z-index: 1000; }
       .hidden { display: none; }
 
       /* Tree view styles */
@@ -87,6 +88,7 @@
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
         <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
+        <button id="btn-toggle-input" class="btn" title="Hide or show the XML input area">Hide Input</button>
         <label>Table path <input id="table-path" type="text" placeholder="body/book/content_item" /></label>
         <button id="btn-open-table" class="btn" title="Open the matching table group">Open Table</button>
         <button id="btn-close-table" class="btn" title="Close the matching table group">Close Table</button>
@@ -101,7 +103,7 @@
         <button id="mem-3" class="btn" title="Click: load. Shift+Click: save">M3</button>
       </div>
 
-      <div class="card">
+      <div id="input-card" class="card">
         <label>XML (paste or choose a file)</label>
         <textarea id="input" placeholder="<root>\n  <hello>world</hello>\n</root>"></textarea>
       </div>
@@ -125,6 +127,7 @@
 
       <!-- No separate formatted output card; formatting writes back into the textarea -->
     </main>
+    <button id="btn-jump-top" class="btn jump-top hidden" aria-label="Jump to the top">Jump to the top</button>
 
     <script type="module">
       import { formatXml, renderXmlTree, expandAll, collapseAll, renderXmlGraph as renderGraph, renderXmlTable, setTableViewOpen, toggleTablePath, fitToContent, enablePanScroll } from "../PavironicaJS/xmlViewer.js";
@@ -152,6 +155,9 @@
       const memBtn1 = document.getElementById('mem-1');
       const memBtn2 = document.getElementById('mem-2');
       const memBtn3 = document.getElementById('mem-3');
+      const btnToggleInput = document.getElementById('btn-toggle-input');
+      const inputCard = document.getElementById('input-card');
+      const btnJumpTop = document.getElementById('btn-jump-top');
 
       function readFileIntoTextarea(inputEl, target) {
         const f = inputEl.files?.[0];
@@ -165,6 +171,13 @@
       file.addEventListener('change', () => readFileIntoTextarea(file, input));
 
       let currentView = 'none'; // 'tree' | 'graph' | 'none'
+      let inputHidden = false;
+
+      function setInputHidden(hidden) {
+        inputHidden = !!hidden;
+        inputCard.classList.toggle('hidden', inputHidden);
+        btnToggleInput.textContent = inputHidden ? 'Show Input' : 'Hide Input';
+      }
 
       btnFormat.addEventListener('click', () => {
         status.textContent = 'Formatting...';
@@ -314,6 +327,14 @@
           toggleSpecificTable(true);
         }
       });
+      btnToggleInput.addEventListener('click', () => setInputHidden(!inputHidden));
+      setInputHidden(false);
+      function syncJumpTop() {
+        btnJumpTop.classList.toggle('hidden', window.scrollY < 240);
+      }
+      btnJumpTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      window.addEventListener('scroll', syncJumpTop, { passive: true });
+      syncJumpTop();
 
       enablePanScroll(graphWrap);
 

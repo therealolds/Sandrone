@@ -23,6 +23,12 @@ function textFor(value) {
   return String(value);
 }
 
+function formatPath(segments) {
+  const safe = Array.isArray(segments) ? segments : [];
+  if (!safe.length) return 'root>';
+  return `root>${safe.map((s) => String(s)).join('>')}>`;
+}
+
 function appendComma(node) {
   if (!node) return;
   const lines = node.querySelectorAll('.line');
@@ -41,9 +47,14 @@ function setCollapsed(node, collapsed) {
   if (node._summary) node._summary.style.display = collapsed ? '' : 'none';
 }
 
-function createScalar(value, key) {
+function createScalar(value, key, pathSegments) {
   const line = document.createElement('div');
   line.className = 'line';
+  // For array scalar items, show the parent container path (requested UX).
+  const pathForLine = (key === undefined && Array.isArray(pathSegments) && pathSegments.length > 0)
+    ? pathSegments.slice(0, -1)
+    : pathSegments;
+  line.dataset.path = formatPath(pathForLine);
   if (key !== undefined) {
     const k = document.createElement('span');
     k.className = 'key';
@@ -62,7 +73,7 @@ function createScalar(value, key) {
   return line;
 }
 
-function createNode(value, key) {
+function createNode(value, key, pathSegments = []) {
   const node = document.createElement('div');
   node.className = 'node';
 
@@ -70,7 +81,7 @@ function createNode(value, key) {
   const isObj = value && typeof value === 'object' && !isArray;
 
   if (!isArray && !isObj) {
-    node.appendChild(createScalar(value, key));
+    node.appendChild(createScalar(value, key, pathSegments));
     node._toggle = null;
     node._summary = null;
     node._children = null;
@@ -83,6 +94,7 @@ function createNode(value, key) {
 
   const line = document.createElement('div');
   line.className = 'line';
+  line.dataset.path = formatPath(pathSegments);
   const toggle = document.createElement('span');
   toggle.className = 'toggle';
   toggle.title = 'Collapse/Expand';
@@ -130,7 +142,7 @@ function createNode(value, key) {
     const frag = document.createDocumentFragment();
     if (isArray) {
       value.forEach((val, idx) => {
-        const child = createNode(val);
+        const child = createNode(val, undefined, pathSegments.concat(idx));
         setCollapsed(child, true);
         const firstLine = child.querySelector('.line');
         if (firstLine) {
@@ -149,7 +161,7 @@ function createNode(value, key) {
     } else {
       const keys = Object.keys(value);
       keys.forEach((k, i) => {
-        const child = createNode(value[k], k);
+        const child = createNode(value[k], k, pathSegments.concat(k));
         setCollapsed(child, true);
         frag.appendChild(child);
         if (i < keys.length - 1) appendComma(child);
@@ -179,7 +191,7 @@ function createNode(value, key) {
 export function renderTree(container, obj) {
   if (!container) return;
   container.innerHTML = '';
-  container.appendChild(createNode(obj));
+  container.appendChild(createNode(obj, undefined, []));
 }
 
 function expandNodeRecursive(node) {
