@@ -25,13 +25,16 @@
       .btn:disabled{opacity:.6;cursor:not-allowed}
       .muted{color:var(--muted)}
       .preview{display:flex;flex-direction:column;gap:8px;font-size:12px}
+      .columns-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
       .chip{padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:var(--input);color:var(--text);font-weight:600}
       .result textarea{min-height:260px}
       .status{min-height:20px;font-size:12px}
-      .column-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--input);gap:12px;flex-wrap:wrap}
-      .column-name{flex:1 1 auto;min-width:120px}
-      .column-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-      .column-toggle{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.2px}
+      .column-item{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--input);min-width:0}
+      .column-name{min-width:0}
+      .column-name .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:top}
+      .column-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .column-toggle{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.2px;line-height:1}
+      .column-toggle input{margin:0}
       .columns-meta{font-size:12px;color:var(--muted)}
       .columns-note{font-size:12px;color:var(--muted)}
     </style>
@@ -142,10 +145,13 @@
           return;
         }
         preview.classList.remove('muted');
+        const grid = document.createElement('div');
+        grid.className = 'columns-grid';
+
         headers.forEach((name) => {
           const state = columnsState[name] ?? (columnsState[name] = { quote: true });
           const row = document.createElement('div');
-          row.className = 'column-row';
+          row.className = 'column-item';
 
           const nameBox = document.createElement('div');
           nameBox.className = 'column-name';
@@ -160,8 +166,9 @@
 
           row.appendChild(nameBox);
           row.appendChild(actions);
-          preview.appendChild(row);
+          grid.appendChild(row);
         });
+        preview.appendChild(grid);
         const meta = document.createElement('div');
         meta.className = 'columns-meta';
         meta.textContent = `${headers.length} column${headers.length === 1 ? '' : 's'} - ${rowCount} row${rowCount === 1 ? '' : 's'}`;
