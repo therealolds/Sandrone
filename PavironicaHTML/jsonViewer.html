@@ -70,6 +70,7 @@
       .search-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
       .search-row { display: flex; gap: 8px; }
       .search-row input { flex: 1 1 auto; min-width: 0; }
+      .search-field { display: flex; flex-direction: column; gap: 4px; }
       .search-nav { display: flex; gap: 8px; }
       .search-nav .btn { flex: 1 1 0; }
       .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
@@ -125,8 +126,15 @@
             </div>
             <div class="search-pane">
               <div class="muted">Advanced search</div>
+              <div class="search-field">
+                <label for="advanced-search-query">Text search</label>
+                <input id="advanced-search-query" type="text" placeholder="Word, phrase, number" />
+              </div>
+              <div class="search-field">
+                <label for="advanced-search-round">Round number</label>
+                <input id="advanced-search-round" type="text" placeholder="Search for numbers rounded = one in input" />
+              </div>
               <div class="search-row">
-                <input id="advanced-search-query" type="text" placeholder="Word or phrase" />
                 <button id="btn-advanced-search" class="btn">Search</button>
               </div>
               <div id="advanced-search-info" class="muted">No active search.</div>
@@ -184,6 +192,7 @@
       const btnJumpTop = document.getElementById('btn-jump-top');
       const selectedPath = document.getElementById('selected-path');
       const advancedSearchQuery = document.getElementById('advanced-search-query');
+      const advancedSearchRound = document.getElementById('advanced-search-round');
       const btnAdvancedSearch = document.getElementById('btn-advanced-search');
       const advancedSearchInfo = document.getElementById('advanced-search-info');
       const btnSearchPrev = document.getElementById('btn-search-prev');
@@ -205,7 +214,7 @@
       let selectedLine = null;
       let searchResults = [];
       let currentSearchIndex = -1;
-      let lastSearchTerm = '';
+      let lastSearchDescription = '';
 
       function setInputHidden(hidden) {
         inputHidden = !!hidden;
@@ -238,7 +247,7 @@
       function resetAdvancedSearch(message = 'No active search.') {
         searchResults = [];
         currentSearchIndex = -1;
-        lastSearchTerm = '';
+        lastSearchDescription = '';
         setSearchInfo(message);
         refreshSearchNav();
       }
@@ -305,6 +314,32 @@
         });
       }
 
+      function collectRoundedNumberMatches(value, roundedTarget, decimals, pathSegments = [], out = [], parentIsArray = false) {
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => collectRoundedNumberMatches(item, roundedTarget, decimals, pathSegments.concat(idx), out, true));
+          return;
+        }
+        if (value && typeof value === 'object') {
+          Object.keys(value).forEach((k) => {
+            collectRoundedNumberMatches(value[k], roundedTarget, decimals, pathSegments.concat(k), out, false);
+          });
+          return;
+        }
+        if (typeof value !== 'number' || !Number.isFinite(value)) return;
+        if (Number(value.toFixed(decimals)) !== roundedTarget) return;
+
+        const focusPath = parentIsArray && pathSegments.length > 0
+          ? pathSegments.slice(0, -1)
+          : pathSegments.slice();
+
+        out.push({
+          kind: 'rounded-number',
+          pathSegments: pathSegments.slice(),
+          focusPath,
+          matchText: String(value)
+        });
+      }
+
       function expandNodeForSearch(node) {
         if (!node) return;
         if (typeof node._ensureChildren === 'function') node._ensureChildren();
@@ -363,15 +398,31 @@
 
         selectedPath.textContent =
           `${formatPathText(hit.pathSegments)}\n\nMatch ${currentSearchIndex + 1}/${total} (${hit.kind}): ${truncateText(hit.matchText)}`;
-        setSearchInfo(`Found ${total} match${total === 1 ? '' : 'es'} for "${lastSearchTerm}". Showing ${currentSearchIndex + 1}/${total}.`);
+        setSearchInfo(`Found ${total} match${total === 1 ? '' : 'es'} for ${lastSearchDescription}. Showing ${currentSearchIndex + 1}/${total}.`);
         refreshSearchNav();
       }
 
       function runAdvancedSearch() {
         const term = String(advancedSearchQuery.value ?? '').trim();
-        if (!term) {
-          resetAdvancedSearch('Type a word or phrase, then press Search.');
+        const roundRaw = String(advancedSearchRound?.value ?? '').trim();
+        if (!term && !roundRaw) {
+          resetAdvancedSearch('Type text and/or a round number, then press Search.');
           return;
+        }
+
+        let roundCfg = null;
+        if (roundRaw) {
+          if (!/^[+-]?\d+(?:\.\d+)?$/.test(roundRaw)) {
+            resetAdvancedSearch('Round number must be a valid number, e.g. 1234.35');
+            return;
+          }
+          const decimals = (roundRaw.split('.')[1] || '').length;
+          const n = Number(roundRaw);
+          if (!Number.isFinite(n)) {
+            resetAdvancedSearch('Round number must be finite.');
+            return;
+          }
+          roundCfg = { raw: roundRaw, decimals, roundedTarget: Number(n.toFixed(decimals)) };
         }
 
         let parsed;
@@ -386,13 +437,17 @@
         showView('tree');
 
         const hits = [];
-        collectSearchMatches(parsed, term.toLowerCase(), [], hits, false);
+        if (term) collectSearchMatches(parsed, term.toLowerCase(), [], hits, false);
+        if (roundCfg) collectRoundedNumberMatches(parsed, roundCfg.roundedTarget, roundCfg.decimals, [], hits, false);
         searchResults = hits;
         currentSearchIndex = -1;
-        lastSearchTerm = term;
+        const labels = [];
+        if (term) labels.push(`text "${term}"`);
+        if (roundCfg) labels.push(`round number ${roundCfg.raw} (${roundCfg.decimals} dp)`);
+        lastSearchDescription = labels.join(' + ');
 
         if (!searchResults.length) {
-          setSearchInfo(`Found 0 matches for "${term}".`);
+          setSearchInfo(`Found 0 matches for ${lastSearchDescription}.`);
           refreshSearchNav();
           selectedPath.textContent = 'No matches found.';
           return;
@@ -458,6 +513,12 @@
       btnToggleInput?.addEventListener('click', () => setInputHidden(!inputHidden));
       btnAdvancedSearch?.addEventListener('click', runAdvancedSearch);
       advancedSearchQuery?.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          runAdvancedSearch();
+        }
+      });
+      advancedSearchRound?.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') {
           ev.preventDefault();
           runAdvancedSearch();
