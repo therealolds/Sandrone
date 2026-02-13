@@ -19,7 +19,8 @@
       .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       label { font-size: 12px; color: var(--muted); }
       input[type="file"] { width: 100%; }
-      input[type=number] { background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;width:80px }
+      input[type=number], input[type=text] { background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px; }
+      input[type=number] { width:80px; }
       textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
       pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
       .result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
@@ -64,7 +65,13 @@
       .table-children { display: flex; flex-direction: column; gap: 8px; }
       .interactive-split { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: start; }
       .interactive-pane { min-width: 0; }
+      .side-pane { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow: auto; display: flex; flex-direction: column; gap: 12px; }
       .path-pane { min-height: 160px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; }
+      .search-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .search-row { display: flex; gap: 8px; }
+      .search-row input { flex: 1 1 auto; min-width: 0; }
+      .search-nav { display: flex; gap: 8px; }
+      .search-nav .btn { flex: 1 1 0; }
       .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
       .line.path-selected { outline: 1px solid var(--accent); border-radius: 4px; background: rgba(34, 211, 238, 0.12); }
       @media (max-width: 980px) {
@@ -111,9 +118,23 @@
           <div class="interactive-pane">
             <div id="tree" class="tree"></div>
           </div>
-          <div class="path-pane">
-            <div class="muted" style="margin-bottom:8px;">Selected path</div>
-            <pre id="selected-path" class="path-output">Click a line on the left to see its path.</pre>
+          <div class="side-pane">
+            <div class="path-pane">
+              <div class="muted" style="margin-bottom:8px;">Selected path</div>
+              <pre id="selected-path" class="path-output">Click a line on the left to see its path.</pre>
+            </div>
+            <div class="search-pane">
+              <div class="muted">Advanced search</div>
+              <div class="search-row">
+                <input id="advanced-search-query" type="text" placeholder="Word or phrase" />
+                <button id="btn-advanced-search" class="btn">Search</button>
+              </div>
+              <div id="advanced-search-info" class="muted">No active search.</div>
+              <div class="search-nav">
+                <button id="btn-search-prev" class="btn" disabled>Previous</button>
+                <button id="btn-search-next" class="btn" disabled>Next</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -162,6 +183,11 @@
       const inputCard = document.getElementById('input-card');
       const btnJumpTop = document.getElementById('btn-jump-top');
       const selectedPath = document.getElementById('selected-path');
+      const advancedSearchQuery = document.getElementById('advanced-search-query');
+      const btnAdvancedSearch = document.getElementById('btn-advanced-search');
+      const advancedSearchInfo = document.getElementById('advanced-search-info');
+      const btnSearchPrev = document.getElementById('btn-search-prev');
+      const btnSearchNext = document.getElementById('btn-search-next');
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
@@ -177,6 +203,9 @@
       let currentView = 'none'; // 'tree' | 'graph' | 'table' | 'none'
       let inputHidden = false;
       let selectedLine = null;
+      let searchResults = [];
+      let currentSearchIndex = -1;
+      let lastSearchTerm = '';
 
       function setInputHidden(hidden) {
         inputHidden = !!hidden;
@@ -190,14 +219,40 @@
         selectedPath.textContent = 'Click a line on the left to see its path.';
       }
 
+      function formatPathText(segments) {
+        const safe = Array.isArray(segments) ? segments : [];
+        if (!safe.length) return 'root>';
+        return `root>${safe.map((s) => String(s)).join('>')}>`;
+      }
+
+      function setSearchInfo(text) {
+        advancedSearchInfo.textContent = text;
+      }
+
+      function refreshSearchNav() {
+        const hasHits = searchResults.length > 0;
+        btnSearchPrev.disabled = !hasHits;
+        btnSearchNext.disabled = !hasHits;
+      }
+
+      function resetAdvancedSearch(message = 'No active search.') {
+        searchResults = [];
+        currentSearchIndex = -1;
+        lastSearchTerm = '';
+        setSearchInfo(message);
+        refreshSearchNav();
+      }
+
       function renderTreeCollapsedView() {
         try {
           renderTree(tree, JSON.parse(input.value));
           collapseAll(tree);
           resetSelectedPathPanel();
+          resetAdvancedSearch();
         } catch (e) {
           tree.textContent = (e && e.message) ? e.message : String(e);
           resetSelectedPathPanel();
+          resetAdvancedSearch('Search unavailable until JSON is valid.');
         }
       }
 
@@ -209,6 +264,142 @@
         selectedLine.classList.add('path-selected');
         selectedPath.textContent = line.dataset.path || 'root>';
       });
+
+      function truncateText(text, maxLen = 120) {
+        const raw = String(text ?? '');
+        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      }
+
+      function collectSearchMatches(value, queryLower, pathSegments = [], out = [], parentIsArray = false) {
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => collectSearchMatches(item, queryLower, pathSegments.concat(idx), out, true));
+          return;
+        }
+        if (value && typeof value === 'object') {
+          Object.keys(value).forEach((k) => {
+            if (String(k).toLowerCase().includes(queryLower)) {
+              out.push({
+                kind: 'key',
+                pathSegments: pathSegments.concat(k),
+                focusPath: pathSegments.concat(k),
+                matchText: k
+              });
+            }
+            collectSearchMatches(value[k], queryLower, pathSegments.concat(k), out, false);
+          });
+          return;
+        }
+
+        const scalarText = value === null ? 'null' : String(value);
+        if (!scalarText.toLowerCase().includes(queryLower)) return;
+
+        const focusPath = parentIsArray && pathSegments.length > 0
+          ? pathSegments.slice(0, -1)
+          : pathSegments.slice();
+
+        out.push({
+          kind: 'value',
+          pathSegments: pathSegments.slice(),
+          focusPath,
+          matchText: scalarText
+        });
+      }
+
+      function expandNodeForSearch(node) {
+        if (!node) return;
+        if (typeof node._ensureChildren === 'function') node._ensureChildren();
+        node.classList.remove('collapsed');
+        if (node._toggle) node._toggle.textContent = '-';
+        if (node._summary) node._summary.style.display = 'none';
+      }
+
+      function expandPathInTree(pathSegments) {
+        const root = tree.querySelector('.node');
+        if (!root) return;
+
+        let current = root;
+        expandNodeForSearch(current);
+        const walk = [];
+
+        for (const segment of pathSegments) {
+          walk.push(segment);
+          expandNodeForSearch(current);
+          if (!current._children) break;
+          const wantedPath = formatPathText(walk);
+          const directChildren = Array.from(current._children.querySelectorAll(':scope > .node'));
+          const next = directChildren.find((n) => {
+            const line = n.querySelector(':scope > .line');
+            return line && line.dataset.path === wantedPath;
+          });
+          if (!next) break;
+          current = next;
+        }
+      }
+
+      function findLineByPath(pathSegments) {
+        const wantedPath = formatPathText(pathSegments);
+        const lines = tree.querySelectorAll('.line');
+        for (const line of lines) {
+          if (line.dataset.path === wantedPath) return line;
+        }
+        return null;
+      }
+
+      function focusSearchResult(index) {
+        if (!searchResults.length) return;
+        const total = searchResults.length;
+        currentSearchIndex = ((index % total) + total) % total;
+        const hit = searchResults[currentSearchIndex];
+
+        expandPathInTree(hit.focusPath);
+
+        const line = findLineByPath(hit.focusPath) || findLineByPath(hit.pathSegments);
+        if (line) {
+          if (selectedLine) selectedLine.classList.remove('path-selected');
+          selectedLine = line;
+          selectedLine.classList.add('path-selected');
+          selectedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        selectedPath.textContent =
+          `${formatPathText(hit.pathSegments)}\n\nMatch ${currentSearchIndex + 1}/${total} (${hit.kind}): ${truncateText(hit.matchText)}`;
+        setSearchInfo(`Found ${total} match${total === 1 ? '' : 'es'} for "${lastSearchTerm}". Showing ${currentSearchIndex + 1}/${total}.`);
+        refreshSearchNav();
+      }
+
+      function runAdvancedSearch() {
+        const term = String(advancedSearchQuery.value ?? '').trim();
+        if (!term) {
+          resetAdvancedSearch('Type a word or phrase, then press Search.');
+          return;
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(input.value);
+        } catch (e) {
+          resetAdvancedSearch('Search unavailable until JSON is valid.');
+          selectedPath.textContent = 'Invalid JSON. Fix it, then run search again.';
+          return;
+        }
+
+        showView('tree');
+
+        const hits = [];
+        collectSearchMatches(parsed, term.toLowerCase(), [], hits, false);
+        searchResults = hits;
+        currentSearchIndex = -1;
+        lastSearchTerm = term;
+
+        if (!searchResults.length) {
+          setSearchInfo(`Found 0 matches for "${term}".`);
+          refreshSearchNav();
+          selectedPath.textContent = 'No matches found.';
+          return;
+        }
+
+        focusSearchResult(0);
+      }
 
       function showView(mode) {
         currentView = mode;
@@ -265,6 +456,15 @@
       btnTableView?.addEventListener('click', () => showView('table'));
       btnGraphView?.addEventListener('click', () => showView('graph'));
       btnToggleInput?.addEventListener('click', () => setInputHidden(!inputHidden));
+      btnAdvancedSearch?.addEventListener('click', runAdvancedSearch);
+      advancedSearchQuery?.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          runAdvancedSearch();
+        }
+      });
+      btnSearchPrev?.addEventListener('click', () => focusSearchResult(currentSearchIndex - 1));
+      btnSearchNext?.addEventListener('click', () => focusSearchResult(currentSearchIndex + 1));
       setInputHidden(false);
       function syncJumpTop() {
         btnJumpTop.classList.toggle('hidden', window.scrollY < 240);
@@ -326,4 +526,3 @@
     </script>
   </body>
   </html>
-
