@@ -71,6 +71,7 @@
       .search-row { display: flex; gap: 8px; }
       .search-row input { flex: 1 1 auto; min-width: 0; }
       .search-field { display: flex; flex-direction: column; gap: 4px; }
+      .search-flags { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
       .search-nav { display: flex; gap: 8px; }
       .search-nav .btn { flex: 1 1 0; }
       .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
@@ -102,10 +103,10 @@
 
       <!-- Ephemeral memory slots (lost on page leave) -->
       <div class="card controls">
-        <label class="muted">Memory (click = load, Shift+click = save)</label>
-        <button id="mem-1" class="btn" title="Click: load. Shift+Click: save">M1</button>
-        <button id="mem-2" class="btn" title="Click: load. Shift+Click: save">M2</button>
-        <button id="mem-3" class="btn" title="Click: load. Shift+Click: save">M3</button>
+        <label class="muted">Memory (click = load, Shift/Ctrl/Alt+click = save, right-click = rename)</label>
+        <button id="mem-1" class="btn" title="Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.">M1</button>
+        <button id="mem-2" class="btn" title="Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.">M2</button>
+        <button id="mem-3" class="btn" title="Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.">M3</button>
       </div>
 
       <div id="input-card" class="card">
@@ -130,9 +131,17 @@
                 <label for="advanced-search-query">Text search</label>
                 <input id="advanced-search-query" type="text" placeholder="Word, phrase, number" />
               </div>
+              <div class="search-flags">
+                <label><input id="advanced-search-case-sensitive" type="checkbox" /> Case sensitive</label>
+                <label><input id="advanced-search-wildcard" type="checkbox" /> % for wildcard</label>
+              </div>
               <div class="search-field">
                 <label for="advanced-search-round">Round number</label>
                 <input id="advanced-search-round" type="text" placeholder="Search for numbers rounded = one in input" />
+              </div>
+              <div class="search-field">
+                <label for="advanced-search-path">Limit search path</label>
+                <input id="advanced-search-path" type="text" placeholder="root>glossary>GlossDiv>GlossList>GlossEntry>" />
               </div>
               <div class="search-row">
                 <button id="btn-advanced-search" class="btn">Search</button>
@@ -192,7 +201,10 @@
       const btnJumpTop = document.getElementById('btn-jump-top');
       const selectedPath = document.getElementById('selected-path');
       const advancedSearchQuery = document.getElementById('advanced-search-query');
+      const advancedSearchCaseSensitive = document.getElementById('advanced-search-case-sensitive');
+      const advancedSearchWildcard = document.getElementById('advanced-search-wildcard');
       const advancedSearchRound = document.getElementById('advanced-search-round');
+      const advancedSearchPath = document.getElementById('advanced-search-path');
       const btnAdvancedSearch = document.getElementById('btn-advanced-search');
       const advancedSearchInfo = document.getElementById('advanced-search-info');
       const btnSearchPrev = document.getElementById('btn-search-prev');
@@ -279,14 +291,77 @@
         return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
       }
 
-      function collectSearchMatches(value, queryLower, pathSegments = [], out = [], parentIsArray = false) {
+      function parseSearchLimitPath(pathText) {
+        const raw = String(pathText ?? '').trim();
+        if (!raw) return { segments: [], label: 'root>' };
+        const cleaned = raw.endsWith('>') ? raw.slice(0, -1) : raw;
+        const parts = cleaned.split('>').map((p) => p.trim()).filter((p) => p.length > 0);
+        if (!parts.length) return { segments: [], label: 'root>' };
+        if (parts[0].toLowerCase() === 'root') parts.shift();
+        return { segments: parts, label: formatPathText(parts) };
+      }
+
+      function resolvePathTarget(rootValue, pathSegments) {
+        let current = rootValue;
+        for (const rawSegment of pathSegments) {
+          const segment = String(rawSegment);
+          if (Array.isArray(current)) {
+            if (!/^\d+$/.test(segment)) {
+              return { ok: false, message: `Path segment "${segment}" is not a valid array index.` };
+            }
+            const index = Number(segment);
+            if (!Number.isInteger(index) || index < 0 || index >= current.length) {
+              return { ok: false, message: `Array index "${segment}" is out of range.` };
+            }
+            current = current[index];
+            continue;
+          }
+          if (current && typeof current === 'object') {
+            if (!Object.prototype.hasOwnProperty.call(current, segment)) {
+              return { ok: false, message: `Path segment "${segment}" was not found.` };
+            }
+            current = current[segment];
+            continue;
+          }
+          return { ok: false, message: `Path segment "${segment}" cannot be resolved on a scalar value.` };
+        }
+        return { ok: true, value: current };
+      }
+
+      function escapeRegex(text) {
+        return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function buildTextMatcher(query, caseSensitive, useWildcard) {
+        const needle = String(query ?? '');
+        if (!useWildcard) {
+          const fixedNeedle = caseSensitive ? needle : needle.toLowerCase();
+          return (haystack) => {
+            const hay = String(haystack ?? '');
+            const source = caseSensitive ? hay : hay.toLowerCase();
+            return source.includes(fixedNeedle);
+          };
+        }
+
+        const regexSource = escapeRegex(needle).replace(/%/g, '.');
+        const flags = caseSensitive ? '' : 'i';
+        const regex = new RegExp(regexSource, flags);
+        return (haystack) => regex.test(String(haystack ?? ''));
+      }
+
+      function textIncludes(haystack, matcher) {
+        const hay = String(haystack ?? '');
+        return matcher(hay);
+      }
+
+      function collectSearchMatches(value, matcher, pathSegments = [], out = [], parentIsArray = false) {
         if (Array.isArray(value)) {
-          value.forEach((item, idx) => collectSearchMatches(item, queryLower, pathSegments.concat(idx), out, true));
+          value.forEach((item, idx) => collectSearchMatches(item, matcher, pathSegments.concat(idx), out, true));
           return;
         }
         if (value && typeof value === 'object') {
           Object.keys(value).forEach((k) => {
-            if (String(k).toLowerCase().includes(queryLower)) {
+            if (textIncludes(k, matcher)) {
               out.push({
                 kind: 'key',
                 pathSegments: pathSegments.concat(k),
@@ -294,13 +369,13 @@
                 matchText: k
               });
             }
-            collectSearchMatches(value[k], queryLower, pathSegments.concat(k), out, false);
+            collectSearchMatches(value[k], matcher, pathSegments.concat(k), out, false);
           });
           return;
         }
 
         const scalarText = value === null ? 'null' : String(value);
-        if (!scalarText.toLowerCase().includes(queryLower)) return;
+        if (!textIncludes(scalarText, matcher)) return;
 
         const focusPath = parentIsArray && pathSegments.length > 0
           ? pathSegments.slice(0, -1)
@@ -404,7 +479,10 @@
 
       function runAdvancedSearch() {
         const term = String(advancedSearchQuery.value ?? '').trim();
+        const caseSensitive = !!advancedSearchCaseSensitive?.checked;
+        const wildcardEnabled = !!advancedSearchWildcard?.checked;
         const roundRaw = String(advancedSearchRound?.value ?? '').trim();
+        const limitPathRaw = String(advancedSearchPath?.value ?? '').trim();
         if (!term && !roundRaw) {
           resetAdvancedSearch('Type text and/or a round number, then press Search.');
           return;
@@ -434,16 +512,33 @@
           return;
         }
 
+        const pathCfg = parseSearchLimitPath(limitPathRaw);
+        const resolved = resolvePathTarget(parsed, pathCfg.segments);
+        if (!resolved.ok) {
+          resetAdvancedSearch(`Invalid limit path: ${resolved.message}`);
+          selectedPath.textContent = `Invalid limit path.\n${resolved.message}`;
+          return;
+        }
+
         showView('tree');
 
         const hits = [];
-        if (term) collectSearchMatches(parsed, term.toLowerCase(), [], hits, false);
-        if (roundCfg) collectRoundedNumberMatches(parsed, roundCfg.roundedTarget, roundCfg.decimals, [], hits, false);
+        if (term) {
+          const matcher = buildTextMatcher(term, caseSensitive, wildcardEnabled);
+          collectSearchMatches(resolved.value, matcher, pathCfg.segments.slice(), hits, false);
+        }
+        if (roundCfg) collectRoundedNumberMatches(resolved.value, roundCfg.roundedTarget, roundCfg.decimals, pathCfg.segments.slice(), hits, false);
         searchResults = hits;
         currentSearchIndex = -1;
         const labels = [];
-        if (term) labels.push(`text "${term}"`);
+        if (term) {
+          const opts = [];
+          if (caseSensitive) opts.push('case sensitive');
+          if (wildcardEnabled) opts.push('% wildcard');
+          labels.push(`text "${term}"${opts.length ? ` (${opts.join(', ')})` : ''}`);
+        }
         if (roundCfg) labels.push(`round number ${roundCfg.raw} (${roundCfg.decimals} dp)`);
+        labels.push(`path ${pathCfg.label}`);
         lastSearchDescription = labels.join(' + ');
 
         if (!searchResults.length) {
@@ -524,6 +619,12 @@
           runAdvancedSearch();
         }
       });
+      advancedSearchPath?.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          runAdvancedSearch();
+        }
+      });
       btnSearchPrev?.addEventListener('click', () => focusSearchResult(currentSearchIndex - 1));
       btnSearchNext?.addEventListener('click', () => focusSearchResult(currentSearchIndex + 1));
       setInputHidden(false);
@@ -558,18 +659,49 @@
       enablePanScroll(graphWrap);
 
       // Memory slots (ephemeral, page-scoped)
-      const mem = [null, null, null];
+      const mem = [
+        { value: null, label: '' },
+        { value: null, label: '' },
+        { value: null, label: '' }
+      ];
+
+      function truncateLabel(text, maxLen = 14) {
+        const raw = String(text ?? '').trim();
+        if (!raw) return '';
+        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      }
+
+      function buildSlotPreview(text, maxLen = 80) {
+        const raw = String(text ?? '').trim().replace(/\s+/g, ' ');
+        if (!raw) return '(empty)';
+        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      }
+
       function refreshMemLabels() {
         [memBtn1, memBtn2, memBtn3].forEach((b, i) => {
           if (!b) return;
           const base = `M${i+1}`;
-          b.textContent = mem[i] != null && mem[i] !== '' ? `${base} *` : base;
+          const hasData = mem[i].value != null && mem[i].value !== '';
+          const shortLabel = truncateLabel(mem[i].label);
+          const labelPart = shortLabel ? ` ${shortLabel}` : '';
+          b.textContent = `${base}${labelPart}${hasData ? ' *' : ''}`;
+          b.title = `Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.\nStored: ${buildSlotPreview(mem[i].value)}`;
         });
       }
-      function saveSlot(i) { mem[i] = input.value; refreshMemLabels(); status.textContent = `Saved to M${i+1}`; }
+
+      function renameSlot(i) {
+        const current = mem[i].label || '';
+        const next = window.prompt(`Label for M${i + 1} (leave empty to clear):`, current);
+        if (next === null) return;
+        mem[i].label = String(next).trim();
+        refreshMemLabels();
+        status.textContent = mem[i].label ? `Renamed M${i+1}` : `Cleared label for M${i+1}`;
+      }
+
+      function saveSlot(i) { mem[i].value = input.value; refreshMemLabels(); status.textContent = `Saved to M${i+1}`; }
       function loadSlot(i) {
-        if (mem[i] == null) { status.textContent = `M${i+1} empty`; return; }
-        input.value = mem[i];
+        if (mem[i].value == null) { status.textContent = `M${i+1} empty`; return; }
+        input.value = mem[i].value;
         // Refresh current view if visible
         if (currentView === 'tree') {
           renderTreeCollapsedView();
@@ -582,6 +714,10 @@
       }
       [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('click', (ev) => {
         if (ev.shiftKey || ev.ctrlKey || ev.altKey) saveSlot(i); else loadSlot(i);
+      }));
+      [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        renameSlot(i);
       }));
       refreshMemLabels();
     </script>
