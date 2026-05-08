@@ -29,12 +29,14 @@
       .ok { color: #34d399; }
       .warn { color: #fbbf24; }
       .jump-top { position: fixed; right: 20px; bottom: 20px; z-index: 1000; }
+      .font-size-controls { position: fixed; right: 20px; bottom: 64px; z-index: 1000; display: flex; gap: 6px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
+      .font-size-controls .btn { padding: 4px 10px; font-size: 15px; line-height: 1; }
       #graph-wrap { cursor: grab; min-width: 0; }
       #graph-wrap.panning { cursor: grabbing; }
       .hidden { display: none; }
 
       /* Tree view styles */
-      .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: var(--tree-font-size, 12px); }
       .node { line-height: 1.4; }
       .line { display: flex; align-items: center; gap: 6px; }
       .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; }
@@ -78,6 +80,29 @@
       .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
       .line.path-selected { outline: 1px solid var(--accent); border-radius: 4px; background: rgba(34, 211, 238, 0.12); }
 
+      /* Comparator modal */
+      .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+      .modal-overlay.hidden { display: none; }
+      .modal { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: min(700px, 100%); max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+      .modal-header { display: flex; align-items: center; justify-content: space-between; }
+      .modal-header strong { font-size: 15px; }
+      .modal-close { background: transparent; border: none; color: var(--muted); font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }
+      .modal-close:hover { color: var(--text); }
+      .modal-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      .modal-col-title { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 10px; letter-spacing: 0.2px; }
+      .source-options { display: flex; flex-direction: column; gap: 8px; }
+      .source-option { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+      .source-option input[type="radio"] { cursor: pointer; accent-color: var(--accent); }
+      .source-option.disabled { opacity: 0.38; pointer-events: none; }
+      .source-extra { margin-top: 10px; }
+      .source-extra input[type="file"] { width: 100%; }
+      .source-extra textarea { width: 100%; height: 110px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11px; }
+      .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 4px; border-top: 1px solid var(--border); }
+      .modal-footer .modal-error { flex: 1; font-size: 12px; color: #fbbf24; }
+      .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 14px; }
+      .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+      @media (max-width: 560px) { .modal-cols { grid-template-columns: 1fr; } }
+
       /* Multi-column tree layout */
       #tree-columns { display: flex; gap: 12px; align-items: start; overflow-x: auto; }
       .tree-column { flex: 1 1 0; min-width: 260px; }
@@ -114,6 +139,7 @@
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
         <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
+        <button id="btn-open-comparator" class="btn" title="Send two JSONs to the JSON Comparator in a new tab">→ JSON Comparator</button>
         <span id="status" class="muted"></span>
       </div>
 
@@ -201,6 +227,39 @@
         </div>
       </div>
     </main>
+    <!-- JSON Comparator modal -->
+    <div id="comparator-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <strong>Send to JSON Comparator</strong>
+          <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+        </div>
+        <div class="modal-cols">
+          <div>
+            <div class="modal-col-title">JSON A</div>
+            <div id="source-options-a" class="source-options"></div>
+            <div id="source-extra-a" class="source-extra hidden"></div>
+          </div>
+          <div>
+            <div class="modal-col-title">JSON B</div>
+            <div id="source-options-b" class="source-options"></div>
+            <div id="source-extra-b" class="source-extra hidden"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-error" id="modal-error"></span>
+          <button class="btn-ghost" id="modal-cancel">Cancel</button>
+          <button class="btn" id="modal-go">Open in Comparator →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="font-size-controls" aria-label="Tree font size">
+      <span title="Tree font size">🔍</span>
+      <button id="btn-font-minus" class="btn" title="Decrease font size">−</button>
+      <span id="font-size-label" style="font-size:11px; color:var(--muted); min-width:28px; text-align:center;">12px</span>
+      <button id="btn-font-plus"  class="btn" title="Increase font size">+</button>
+    </div>
     <button id="btn-jump-top" class="btn jump-top hidden" aria-label="Jump to the top">Jump to the top</button>
 
     <script type="module">
@@ -781,6 +840,149 @@
         renameSlot(i);
       }));
       refreshMemLabels();
+
+      // ---- JSON Comparator modal ----
+      const comparatorModal  = document.getElementById('comparator-modal');
+      const modalCloseBtn    = document.getElementById('modal-close');
+      const modalCancelBtn   = document.getElementById('modal-cancel');
+      const modalGoBtn       = document.getElementById('modal-go');
+      const modalErrorEl     = document.getElementById('modal-error');
+      const sourceOptionsElA = document.getElementById('source-options-a');
+      const sourceOptionsElB = document.getElementById('source-options-b');
+      const sourceExtraElA   = document.getElementById('source-extra-a');
+      const sourceExtraElB   = document.getElementById('source-extra-b');
+
+      function buildSourceOptions(container, extraContainer, side) {
+        container.innerHTML = '';
+        extraContainer.innerHTML = '';
+        extraContainer.classList.add('hidden');
+
+        const sources = [
+          { id: 'input', label: 'Input', available: true },
+          ...mem.map((m, i) => ({
+            id: `m${i + 1}`,
+            label: m.label ? `M${i + 1}: ${m.label}` : `M${i + 1}`,
+            available: m.value != null && m.value !== ''
+          })),
+          { id: 'file',  label: '📂  From file…', available: true },
+          { id: 'paste', label: '✏️  Paste…',     available: true }
+        ];
+
+        let firstAvailable = true;
+        for (const src of sources) {
+          const lbl = document.createElement('label');
+          lbl.className = 'source-option' + (src.available ? '' : ' disabled');
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = `src-${side}`;
+          radio.value = src.id;
+          radio.disabled = !src.available;
+          if (firstAvailable && src.available) { radio.checked = true; firstAvailable = false; }
+          lbl.appendChild(radio);
+          lbl.appendChild(document.createTextNode(' ' + src.label));
+          container.appendChild(lbl);
+
+          radio.addEventListener('change', () => {
+            if (!radio.checked) return;
+            extraContainer.innerHTML = '';
+            if (src.id === 'file') {
+              const fi = document.createElement('input');
+              fi.type = 'file';
+              fi.accept = 'application/json,.json,.txt';
+              extraContainer.appendChild(fi);
+              extraContainer.classList.remove('hidden');
+            } else if (src.id === 'paste') {
+              const ta = document.createElement('textarea');
+              ta.placeholder = `Paste JSON ${side.toUpperCase()} here…`;
+              extraContainer.appendChild(ta);
+              extraContainer.classList.remove('hidden');
+            } else {
+              extraContainer.classList.add('hidden');
+            }
+          });
+        }
+      }
+
+      function openComparatorModal() {
+        buildSourceOptions(sourceOptionsElA, sourceExtraElA, 'a');
+        buildSourceOptions(sourceOptionsElB, sourceExtraElB, 'b');
+        // Default B to first filled memory slot so the two sides differ by default
+        const bRadios = [...sourceOptionsElB.querySelectorAll('input[type="radio"]')].filter(r => !r.disabled);
+        const bMem = bRadios.find(r => r.value.startsWith('m'));
+        if (bMem) { bRadios.forEach(r => r.checked = false); bMem.checked = true; }
+        modalErrorEl.textContent = '';
+        comparatorModal.classList.remove('hidden');
+      }
+
+      function closeComparatorModal() { comparatorModal.classList.add('hidden'); }
+
+      function readFileAsync(fileInput) {
+        return new Promise((resolve, reject) => {
+          const f = fileInput.files?.[0];
+          if (!f) { reject(new Error('No file selected.')); return; }
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result ?? '');
+          reader.onerror = () => reject(new Error('Failed to read file: ' + reader.error));
+          reader.readAsText(f);
+        });
+      }
+
+      async function resolveSource(optionsEl, extraEl, side) {
+        const checked = optionsEl.querySelector('input[type="radio"]:checked');
+        if (!checked) throw new Error(`No source selected for JSON ${side.toUpperCase()}.`);
+        const val = checked.value;
+        if (val === 'input') return input.value;
+        if (val.startsWith('m')) { const i = parseInt(val[1], 10) - 1; return mem[i]?.value ?? ''; }
+        if (val === 'file') {
+          const fi = extraEl.querySelector('input[type="file"]');
+          if (!fi) throw new Error(`Choose a file for JSON ${side.toUpperCase()}.`);
+          return readFileAsync(fi);
+        }
+        if (val === 'paste') {
+          const ta = extraEl.querySelector('textarea');
+          return ta ? ta.value : '';
+        }
+        throw new Error(`Unknown source: ${val}`);
+      }
+
+      document.getElementById('btn-open-comparator').addEventListener('click', openComparatorModal);
+      modalCloseBtn.addEventListener('click', closeComparatorModal);
+      modalCancelBtn.addEventListener('click', closeComparatorModal);
+      comparatorModal.addEventListener('click', (ev) => { if (ev.target === comparatorModal) closeComparatorModal(); });
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !comparatorModal.classList.contains('hidden')) closeComparatorModal(); });
+
+      modalGoBtn.addEventListener('click', async () => {
+        modalErrorEl.textContent = '';
+        modalGoBtn.disabled = true;
+        try {
+          const [jsonA, jsonB] = await Promise.all([
+            resolveSource(sourceOptionsElA, sourceExtraElA, 'a'),
+            resolveSource(sourceOptionsElB, sourceExtraElB, 'b')
+          ]);
+          sessionStorage.setItem('pavironica_cmp_a', jsonA);
+          sessionStorage.setItem('pavironica_cmp_b', jsonB);
+          window.open('../PavironicaHTML/jsonComparator.html', '_blank');
+          closeComparatorModal();
+        } catch (err) {
+          modalErrorEl.textContent = err?.message ?? String(err);
+        } finally {
+          modalGoBtn.disabled = false;
+        }
+      });
+
+      // ---- Tree font size controls ----
+      const FONT_MIN = 8, FONT_MAX = 24, FONT_STEP = 1;
+      let treeFontSize = 12;
+      const fontSizeLabel = document.getElementById('font-size-label');
+
+      function applyTreeFontSize(size) {
+        treeFontSize = Math.max(FONT_MIN, Math.min(FONT_MAX, size));
+        document.documentElement.style.setProperty('--tree-font-size', `${treeFontSize}px`);
+        fontSizeLabel.textContent = `${treeFontSize}px`;
+      }
+
+      document.getElementById('btn-font-minus').addEventListener('click', () => applyTreeFontSize(treeFontSize - FONT_STEP));
+      document.getElementById('btn-font-plus').addEventListener('click',  () => applyTreeFontSize(treeFontSize + FONT_STEP));
     </script>
   </body>
 </html>

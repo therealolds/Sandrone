@@ -99,6 +99,14 @@
       fileA.addEventListener('change', () => readIntoText(fileA, textA));
       fileB.addEventListener('change', () => readIntoText(fileB, textB));
 
+      // Pre-load JSONs injected by the JSON Viewer via sessionStorage
+      try {
+        const a = sessionStorage.getItem('pavironica_cmp_a');
+        const b = sessionStorage.getItem('pavironica_cmp_b');
+        if (a !== null) { textA.value = a; sessionStorage.removeItem('pavironica_cmp_a'); }
+        if (b !== null) { textB.value = b; sessionStorage.removeItem('pavironica_cmp_b'); }
+      } catch (_) { /* sessionStorage unavailable */ }
+
       function mode() {
         return document.querySelector('input[name="mode"]:checked')?.value || 'full';
       }
