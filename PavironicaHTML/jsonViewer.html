@@ -20,7 +20,17 @@
       input[type="file"] { width: 100%; }
       input[type=number], input[type=text] { background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px; }
       input[type=number] { width:80px; }
-      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; }
+      /* Editor with gutter */
+      .editor-wrap { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input); }
+      .line-nums { flex-shrink: 0; width: 46px; padding: 10px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; color: var(--muted); text-align: right; overflow: hidden; user-select: none; }
+      .ln { display: block; padding: 0 7px 0 4px; }
+      .ln-even { background: rgba(128,128,128,0.07); }
+      .ln-err { background: rgba(251,113,133,0.22) !important; color: #fb7185 !important; }
+      #input { flex: 1; min-width: 0; min-height: 320px; resize: vertical; border: none; border-radius: 0; background: transparent; line-height: 18px; }
+      .json-error-banner { margin-top: 8px; padding: 8px 12px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.35); border-radius: 8px; font-size: 12px; color: #fb7185; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .jump-err-btn { background: transparent; border: 1px solid rgba(251,113,133,0.5); color: #fb7185; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; }
+      .jump-err-btn:hover { background: rgba(251,113,133,0.15); }
       pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
       .result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
       .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
@@ -153,7 +163,11 @@
 
       <div id="input-card" class="card">
         <label>JSON (paste or choose a file)</label>
-        <textarea id="input" placeholder="{\n  &quot;hello&quot;: &quot;world&quot;\n}"></textarea>
+        <div class="editor-wrap">
+          <div id="line-nums" class="line-nums" aria-hidden="true"></div>
+          <textarea id="input" placeholder="Paste JSON or load a file..."></textarea>
+        </div>
+        <div id="json-error-banner" class="json-error-banner hidden"></div>
       </div>
 
       <div id="tree-card" class="card result hidden">
@@ -301,11 +315,92 @@
       const btnSearchPrev               = document.getElementById('btn-search-prev');
       const btnSearchNext               = document.getElementById('btn-search-next');
 
+      // ---- Line-number gutter + error banner ----
+      const lineNums        = document.getElementById('line-nums');
+      const jsonErrorBanner = document.getElementById('json-error-banner');
+      let currentErrorLine  = -1;
+
+      function buildLineNums(count, errLine) {
+        const parts = [];
+        for (let i = 1; i <= count; i++) {
+          const cls = i === errLine ? 'ln ln-err' : (i % 2 === 0 ? 'ln ln-even' : 'ln');
+          parts.push(`<span class="${cls}">${i}</span>`);
+        }
+        lineNums.innerHTML = parts.join('');
+      }
+
+      function refreshLineNums() {
+        buildLineNums(input.value.split('\n').length, currentErrorLine);
+        lineNums.scrollTop = input.scrollTop;
+      }
+
+      function escHtml(s) {
+        return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      }
+
+      function extractErrorLocation(jsonText, err) {
+        const msg = String(err?.message ?? err ?? '');
+        // Firefox: "at line X column Y"
+        const ff = msg.match(/\bline\s+(\d+)\s+col(?:umn)?\s+(\d+)/i);
+        if (ff) return { line: +ff[1], col: +ff[2] };
+        // Chrome/V8: "at position N"
+        const ch = msg.match(/\bposition\s+(\d+)/i);
+        if (ch) {
+          const pos = Math.min(+ch[1], jsonText.length);
+          const before = jsonText.slice(0, pos);
+          const lines  = before.split('\n');
+          return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+        }
+        return { line: -1, col: -1 };
+      }
+
+      function jumpToLine(line, col) {
+        const lines = input.value.split('\n');
+        let pos = 0;
+        for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
+        pos += Math.max(0, col - 1);
+        input.setSelectionRange(pos, pos);
+        input.focus();
+        input.scrollTop = Math.max(0, (line - 1) * 18 - 60);
+        lineNums.scrollTop = input.scrollTop;
+      }
+
+      function showParseError(jsonText, err) {
+        const { line, col } = extractErrorLocation(jsonText, err);
+        currentErrorLine = line;
+        buildLineNums(jsonText.split('\n').length, currentErrorLine);
+        lineNums.scrollTop = input.scrollTop;
+        const locLabel = line > 0 ? `Line ${line}${col > 0 ? `, col ${col}` : ''}` : '';
+        const jumpBtn  = line > 0
+          ? `<button class="jump-err-btn" onclick="(function(){})()">↳ Jump to line ${line}</button>`
+          : '';
+        jsonErrorBanner.innerHTML =
+          `<span>⚠ ${locLabel ? `<strong>${locLabel}</strong> — ` : ''}${escHtml(err?.message ?? String(err))}</span>${jumpBtn}`;
+        jsonErrorBanner.classList.remove('hidden');
+        if (line > 0) {
+          jsonErrorBanner.querySelector('.jump-err-btn')?.addEventListener('click', () => jumpToLine(line, col));
+        }
+      }
+
+      function clearParseError() {
+        currentErrorLine = -1;
+        jsonErrorBanner.classList.add('hidden');
+        jsonErrorBanner.innerHTML = '';
+        refreshLineNums();
+      }
+
+      input.addEventListener('input',  () => { clearParseError(); refreshLineNums(); });
+      input.addEventListener('scroll', () => { lineNums.scrollTop = input.scrollTop; });
+      refreshLineNums();
+
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
         if (!f) return;
         const reader = new FileReader();
-        reader.onload = () => { target.value = reader.result ?? ''; };
+        reader.onload = () => {
+          target.value = reader.result ?? '';
+          if (target === input) { clearParseError(); refreshLineNums(); }
+        };
         reader.onerror = () => { target.value = ''; alert('Failed to read file: ' + reader.error); };
         reader.readAsText(f);
       }
@@ -422,8 +517,10 @@
           try {
             renderTree(treeEl, JSON.parse(dataText));
             collapseAll(treeEl);
+            if (slot === 'input') clearParseError();
           } catch (e) {
             treeEl.textContent = (e?.message) ?? String(e);
+            if (slot === 'input') showParseError(dataText, e);
           }
 
           // Per-column click handler
@@ -725,12 +822,15 @@
           const n = Math.max(0, Math.min(10, parseInt(indent.value, 10) || 0));
           input.value = formatJson(input.value, n);
           status.textContent = 'Done';
+          clearParseError();
+          refreshLineNums();
           if (currentView === 'tree') renderColumns();
           else if (currentView === 'table') { try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); } }
           else if (currentView === 'graph') { try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); } }
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
+          showParseError(input.value, err);
           if (currentView === 'tree') { const t = getActiveTree(); if (t) t.textContent = (err?.message) ?? String(err); }
           else if (currentView === 'table') tableView.textContent = (err?.message) ?? String(err);
         } finally {
@@ -826,6 +926,8 @@
       function loadSlot(i) {
         if (mem[i].value == null) { status.textContent = `M${i+1} empty`; return; }
         input.value = mem[i].value;
+        clearParseError();
+        refreshLineNums();
         if (currentView === 'tree') renderColumns();
         else if (currentView === 'table') { try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); } }
         else if (currentView === 'graph') { try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); } }
