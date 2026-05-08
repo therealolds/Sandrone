@@ -1072,6 +1072,20 @@
         }
       });
 
+      // ---- Incoming data from JSON Tracker / other tools ----
+      try {
+        const keys = ['pavironica_viewer_input','pavironica_viewer_m1','pavironica_viewer_m2','pavironica_viewer_m3'];
+        const vals = keys.map(k => { const v = sessionStorage.getItem(k); sessionStorage.removeItem(k); return v; });
+        if (vals.some(v => v !== null)) {
+          if (vals[0] !== null) { input.value = vals[0]; clearParseError(); refreshLineNums(); }
+          if (vals[1] !== null) { mem[0].value = vals[1]; }
+          if (vals[2] !== null) { mem[1].value = vals[2]; }
+          if (vals[3] !== null) { mem[2].value = vals[3]; }
+          refreshMemLabels();
+          showView('tree');
+        }
+      } catch (_) {}
+
       // ---- Tree font size controls ----
       const FONT_MIN = 8, FONT_MAX = 24, FONT_STEP = 1;
       let treeFontSize = 12;

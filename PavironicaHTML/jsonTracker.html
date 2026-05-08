@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JSON Tracker - Pavironica</title>
+    <script>(function(){try{const t=localStorage.getItem('theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+    <link rel="stylesheet" href="../assets/css/style.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
+      header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+      header a { color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; }
+      header a:hover { border-color: var(--accent); color: var(--text); }
+      header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
+      main { padding: 20px; max-width: clamp(1100px, 95vw, 1800px); margin: 0 auto; display: grid; gap: 16px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 0; }
+      .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 7px 13px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; }
+      .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+      .muted { color: var(--muted); }
+      .hidden { display: none !important; }
+
+      /* Drop zone */
+      .drop-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 52px 24px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+      .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(34,211,238,0.04); }
+      .drop-zone p { margin: 6px 0; font-size: 14px; }
+      .drop-icon { font-size: 44px; display: block; margin-bottom: 14px; }
+      .drop-hint { font-size: 12px; color: var(--muted); margin-top: 10px !important; line-height: 1.6; }
+      kbd { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 11px; font-family: ui-monospace, monospace; }
+
+      /* Controls row */
+      .controls-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      input[type=text] { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit; }
+      input[type=text]:focus { outline: 1px solid var(--accent); }
+      #search-input { flex: 1 1 180px; min-width: 160px; }
+      select { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px; cursor: pointer; font-family: inherit; }
+      select:focus { outline: 1px solid var(--accent); }
+
+      /* Action bar */
+      .action-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: rgba(34,211,238,0.06); border-color: rgba(34,211,238,0.25); }
+
+      /* Split layout */
+      .tracker-layout { display: grid; grid-template-columns: 1fr 400px; gap: 16px; align-items: start; }
+      @media (max-width: 1000px) { .tracker-layout { grid-template-columns: 1fr; } }
+
+      /* Table */
+      .table-wrap { overflow-x: auto; }
+      .har-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      .har-table th { padding: 8px 10px; text-align: left; border-bottom: 2px solid var(--border); color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: 0.3px; white-space: nowrap; background: var(--card); position: sticky; top: 0; z-index: 1; }
+      .har-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+      .har-table tbody tr { cursor: pointer; transition: background 60ms; }
+      .har-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
+      .har-table tr.row-selected td { background: rgba(34,211,238,0.07); }
+      .har-table tr.row-preview td { background: rgba(34,211,238,0.13); }
+      .har-table tr.row-selected.row-preview td { background: rgba(34,211,238,0.18); }
+      .har-table th:first-child, .har-table td:first-child { width: 36px; padding-right: 4px; }
+      .url-cell { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
+      .num-cell { text-align: right; white-space: nowrap; color: var(--muted); }
+
+      /* Method badge */
+      .mbadge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; }
+      .m-GET    { background: rgba(96,165,250,0.18);  color: #60a5fa; }
+      .m-POST   { background: rgba(52,211,153,0.18);  color: #34d399; }
+      .m-PUT    { background: rgba(251,146,60,0.18);  color: #fb923c; }
+      .m-PATCH  { background: rgba(167,139,250,0.18); color: #a78bfa; }
+      .m-DELETE { background: rgba(248,113,113,0.18); color: #f87171; }
+      .m-other  { background: rgba(148,163,184,0.15); color: #94a3b8; }
+
+      /* Status */
+      .sbadge { font-size: 11px; font-weight: 600; }
+      .s-2xx { color: #34d399; } .s-3xx { color: #22d3ee; }
+      .s-4xx { color: #fbbf24; } .s-5xx { color: #f87171; }
+      .s-oth  { color: #94a3b8; }
+
+      /* Type label */
+      .type-json { color: var(--accent); font-weight: 600; }
+      .type-other { color: var(--muted); }
+
+      /* Preview pane */
+      .preview-pane { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+      .preview-pane-title { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+      .preview-header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+      .preview-status { font-size: 13px; font-weight: 600; }
+      .preview-url { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; color: var(--muted); word-break: break-all; margin-bottom: 8px; }
+      .preview-meta { display: flex; gap: 14px; font-size: 11px; color: var(--muted); flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+      .preview-meta .type-json { color: var(--accent); }
+      .preview-section { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 10px 0 6px; }
+      .preview-empty { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
+      .preview-tree { max-height: 480px; overflow-y: auto; padding-right: 4px; }
+      .preview-raw { background: var(--input); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow: auto; color: var(--muted); }
+
+      /* Tree (copied from jsonViewer) */
+      .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      .node { line-height: 1.4; }
+      .line { display: flex; align-items: center; gap: 6px; }
+      .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; }
+      .toggle:hover { border-color: var(--accent); }
+      .key { color: #93c5fd; } .punct { color: #9ca3af; } .string { color: #86efac; }
+      .number { color: #fca5a5; } .boolean, .null { color: #fbbf24; }
+      .children { margin-left: 18px; border-left: 1px dashed var(--guide); padding-left: 8px; }
+      .summary { color: var(--muted); }
+      .collapsed > .children { display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../index.html">← Back</a>
+      <h1>JSON Tracker</h1>
+      <span class="muted">Local-only • No data leaves your browser</span>
+    </header>
+    <main>
+
+      <!-- Drop zone -->
+      <div id="drop-zone-card" class="card">
+        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Load HAR file">
+          <span class="drop-icon">🗂</span>
+          <p><strong>Drop a .har file here</strong> or click to browse</p>
+          <p class="drop-hint">
+            How to export: DevTools → Network tab → right-click any request →
+            <kbd>Save All As HAR</kbd><br/>
+            (Firefox: <kbd>Salva tutto come HAR</kbd> &nbsp;·&nbsp; Chrome: <kbd>Save all as HAR with content</kbd>)
+          </p>
+          <input type="file" id="har-file" accept=".har,application/json,.json" class="hidden" />
+        </div>
+      </div>
+
+      <!-- Controls (hidden until file loaded) -->
+      <div id="controls-row" class="card controls-row hidden">
+        <input id="search-input" type="text" placeholder="Filter by URL…" autocomplete="off" />
+        <select id="method-filter">
+          <option value="">All methods</option>
+          <option>GET</option><option>POST</option><option>PUT</option>
+          <option>PATCH</option><option>DELETE</option><option>OPTIONS</option>
+        </select>
+        <select id="status-filter">
+          <option value="">All status</option>
+          <option value="2xx">2xx Success</option>
+          <option value="3xx">3xx Redirect</option>
+          <option value="4xx">4xx Client error</option>
+          <option value="5xx">5xx Server error</option>
+        </select>
+        <select id="type-filter">
+          <option value="">All types</option>
+          <option value="json">JSON only</option>
+        </select>
+        <button id="btn-load-another" class="btn-ghost">Load another HAR</button>
+        <span id="status-bar" class="muted" style="font-size:12px; margin-left:auto;"></span>
+      </div>
+
+      <!-- Action bar (hidden until selection) -->
+      <div id="action-bar" class="card action-bar hidden">
+        <span id="selection-info" style="color:var(--accent); font-weight:600; font-size:13px;"></span>
+        <button id="btn-open-viewer" class="btn">Open in JSON Viewer</button>
+        <button id="btn-open-comparator" class="btn" disabled title="Select exactly 2 entries to compare">Send to Comparator</button>
+        <button id="btn-clear-sel" class="btn-ghost">Clear selection</button>
+        <span id="selection-hint" class="muted" style="font-size:11px; margin-left:4px;"></span>
+      </div>
+
+      <!-- Main split layout (hidden until file loaded) -->
+      <div id="tracker-layout" class="tracker-layout hidden">
+
+        <!-- Table -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div class="table-wrap">
+            <table class="har-table">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="check-all" title="Select / deselect all visible" /></th>
+                  <th>Method</th>
+                  <th>Status</th>
+                  <th>URL</th>
+                  <th>Type</th>
+                  <th class="num-cell">Size</th>
+                  <th class="num-cell">Time</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Preview pane -->
+        <div class="card preview-pane">
+          <div class="preview-pane-title">Response Preview</div>
+          <div id="preview-content">
+            <div class="preview-empty">Click a row to preview its response.</div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <script type="module">
+      import { renderTree, collapseAll } from '../PavironicaJS/jsonViewer.js';
+
+      // ---- DOM refs ----
+      const dropZoneCard    = document.getElementById('drop-zone-card');
+      const dropZone        = document.getElementById('drop-zone');
+      const harFile         = document.getElementById('har-file');
+      const controlsRow     = document.getElementById('controls-row');
+      const actionBar       = document.getElementById('action-bar');
+      const trackerLayout   = document.getElementById('tracker-layout');
+      const tableBody       = document.getElementById('table-body');
+      const previewContent  = document.getElementById('preview-content');
+      const statusBar       = document.getElementById('status-bar');
+      const searchInput     = document.getElementById('search-input');
+      const methodFilter    = document.getElementById('method-filter');
+      const statusFilter    = document.getElementById('status-filter');
+      const typeFilter      = document.getElementById('type-filter');
+      const checkAll        = document.getElementById('check-all');
+      const selectionInfo   = document.getElementById('selection-info');
+      const selectionHint   = document.getElementById('selection-hint');
+      const btnOpenViewer   = document.getElementById('btn-open-viewer');
+      const btnOpenCmp      = document.getElementById('btn-open-comparator');
+      const btnClearSel     = document.getElementById('btn-clear-sel');
+      const btnLoadAnother  = document.getElementById('btn-load-another');
+
+      // ---- State ----
+      let allEntries      = [];
+      let filteredEntries = [];
+      let selectedSet     = new Set(); // Set of entry.idx
+      let previewIdx      = null;
+
+      // ---- HAR parsing ----
+      function tryBase64Decode(str) {
+        try { return atob(str); } catch (_) { return str; }
+      }
+
+      function parseHar(text) {
+        const har = JSON.parse(text);
+        const entries = har?.log?.entries ?? [];
+        return entries.map((entry, i) => {
+          const req     = entry.request  ?? {};
+          const res     = entry.response ?? {};
+          const content = res.content    ?? {};
+
+          let body = content.text ?? '';
+          if (content.encoding === 'base64' && body) body = tryBase64Decode(body);
+
+          const mimeRaw  = (content.mimeType ?? '').split(';')[0].trim();
+          const isJsonMime = /json/i.test(mimeRaw);
+
+          let parsedJson = null;
+          let isJson = false;
+          if (body) { try { parsedJson = JSON.parse(body); isJson = true; } catch (_) {} }
+
+          let reqBodyText = req.postData?.text ?? null;
+          let reqBodyJson = null;
+          if (reqBodyText) { try { reqBodyJson = JSON.parse(reqBodyText); } catch (_) {} }
+
+          let shortUrl = req.url ?? '';
+          try { const u = new URL(shortUrl); shortUrl = u.pathname + (u.search || ''); } catch (_) {}
+
+          const bodySize = content.size > 0 ? content.size : (res.bodySize > 0 ? res.bodySize : 0);
+
+          return {
+            idx: i,
+            method: (req.method ?? 'UNKNOWN').toUpperCase(),
+            url: req.url ?? '',
+            shortUrl,
+            status: res.status ?? 0,
+            statusText: res.statusText ?? '',
+            mimeType: mimeRaw,
+            isJsonMime,
+            size: bodySize,
+            time: Math.round(entry.time ?? 0),
+            startedDateTime: entry.startedDateTime ?? '',
+            body,
+            parsedJson,
+            isJson,
+            reqBodyText,
+            reqBodyJson,
+            reqMime: (req.postData?.mimeType ?? '').split(';')[0].trim(),
+          };
+        });
+      }
+
+      // ---- Formatting helpers ----
+      function fmtSize(b) {
+        if (b <= 0) return '—';
+        if (b < 1024) return b + ' B';
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+        return (b / (1024 * 1024)).toFixed(2) + ' MB';
+      }
+
+      function escH(s) {
+        return String(s ?? '').replace(/[&<>"']/g,
+          c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+      }
+
+      function methodBadge(m) {
+        const cls = { GET:'m-GET', POST:'m-POST', PUT:'m-PUT', PATCH:'m-PATCH', DELETE:'m-DELETE' }[m] ?? 'm-other';
+        return `<span class="mbadge ${cls}">${escH(m)}</span>`;
+      }
+
+      function statusBadge(s) {
+        const cls = s >= 500 ? 's-5xx' : s >= 400 ? 's-4xx' : s >= 300 ? 's-3xx' : s >= 200 ? 's-2xx' : 's-oth';
+        return `<span class="sbadge ${cls}">${s}</span>`;
+      }
+
+      function typeCell(e) {
+        if (e.isJson) return '<span class="type-json">JSON</span>';
+        if (!e.mimeType) return '<span class="type-other">—</span>';
+        const m = e.mimeType;
+        const short = m.includes('html') ? 'HTML'
+          : m.includes('javascript') ? 'JS'
+          : m.includes('css') ? 'CSS'
+          : m.includes('image') ? 'img'
+          : m.includes('text/plain') ? 'text'
+          : m.split('/').pop().slice(0, 8);
+        return `<span class="type-other">${escH(short)}</span>`;
+      }
+
+      // ---- Table rendering ----
+      function renderTable() {
+        if (!filteredEntries.length) {
+          tableBody.innerHTML = `<tr><td colspan="7" style="padding:20px; text-align:center; color:var(--muted); font-size:13px;">No entries match the current filters.</td></tr>`;
+          checkAll.indeterminate = false;
+          checkAll.checked = false;
+          return;
+        }
+
+        const rows = filteredEntries.map(e => {
+          const isSel  = selectedSet.has(e.idx);
+          const isPrev = previewIdx === e.idx;
+          const cls    = (isSel ? 'row-selected ' : '') + (isPrev ? 'row-preview' : '');
+          return `<tr class="${cls.trim()}" data-idx="${e.idx}">
+            <td><input type="checkbox" class="row-cb" data-idx="${e.idx}"${isSel ? ' checked' : ''} /></td>
+            <td>${methodBadge(e.method)}</td>
+            <td>${statusBadge(e.status)}</td>
+            <td class="url-cell" title="${escH(e.url)}">${escH(e.shortUrl || e.url)}</td>
+            <td>${typeCell(e)}</td>
+            <td class="num-cell">${fmtSize(e.size)}</td>
+            <td class="num-cell">${e.time ? e.time + 'ms' : '—'}</td>
+          </tr>`;
+        }).join('');
+        tableBody.innerHTML = rows;
+
+        // Row click → preview
+        tableBody.querySelectorAll('tr[data-idx]').forEach(row => {
+          row.addEventListener('click', ev => {
+            if (ev.target.classList.contains('row-cb')) return;
+            showPreview(parseInt(row.dataset.idx, 10));
+          });
+        });
+
+        // Checkbox toggle
+        tableBody.querySelectorAll('.row-cb').forEach(cb => {
+          cb.addEventListener('change', ev => {
+            ev.stopPropagation();
+            const idx = parseInt(cb.dataset.idx, 10);
+            if (cb.checked) selectedSet.add(idx); else selectedSet.delete(idx);
+            cb.closest('tr').classList.toggle('row-selected', cb.checked);
+            syncCheckAll();
+            updateActionBar();
+          });
+        });
+
+        syncCheckAll();
+      }
+
+      function syncCheckAll() {
+        const total  = filteredEntries.length;
+        const selVis = filteredEntries.filter(e => selectedSet.has(e.idx)).length;
+        checkAll.checked       = total > 0 && selVis === total;
+        checkAll.indeterminate = selVis > 0 && selVis < total;
+      }
+
+      checkAll.addEventListener('change', () => {
+        filteredEntries.forEach(e => {
+          if (checkAll.checked) selectedSet.add(e.idx);
+          else selectedSet.delete(e.idx);
+        });
+        renderTable();
+        updateActionBar();
+      });
+
+      // ---- Preview ----
+      function showPreview(idx) {
+        previewIdx = idx;
+        const e = allEntries[idx];
+        if (!e) return;
+
+        // Update row highlight
+        tableBody.querySelectorAll('tr[data-idx]').forEach(r => {
+          r.classList.toggle('row-preview', parseInt(r.dataset.idx, 10) === idx);
+        });
+
+        const metaItems = [
+          fmtSize(e.size),
+          e.time ? e.time + 'ms' : null,
+          e.mimeType ? `<span class="${e.isJson ? 'type-json' : ''}">${escH(e.mimeType)}</span>` : null,
+          e.startedDateTime ? escH(e.startedDateTime.replace('T', ' ').slice(0, 19) + ' UTC') : null,
+        ].filter(Boolean);
+
+        let html = `
+          <div class="preview-header">
+            ${methodBadge(e.method)}
+            <span class="preview-status sbadge ${e.status >= 500 ? 's-5xx' : e.status >= 400 ? 's-4xx' : e.status >= 300 ? 's-3xx' : 's-2xx'}">${e.status} ${escH(e.statusText)}</span>
+          </div>
+          <div class="preview-url">${escH(e.url)}</div>
+          <div class="preview-meta">${metaItems.map(i => `<span>${i}</span>`).join('')}</div>`;
+
+        if (e.reqBodyText) {
+          html += `<div class="preview-section">Request Body</div>`;
+          html += e.reqBodyJson
+            ? `<div id="req-tree" class="tree preview-tree"></div>`
+            : `<pre class="preview-raw">${escH(e.reqBodyText.slice(0, 3000))}</pre>`;
+        }
+
+        if (e.body) {
+          html += `<div class="preview-section">Response Body</div>`;
+          html += e.parsedJson !== null
+            ? `<div id="res-tree" class="tree preview-tree"></div>`
+            : `<pre class="preview-raw">${escH(e.body.slice(0, 3000))}</pre>`;
+        } else {
+          html += `<div style="color:var(--muted); font-size:12px; padding:6px 0;">No response body captured.</div>`;
+        }
+
+        previewContent.innerHTML = html;
+
+        if (e.reqBodyJson) {
+          const t = document.getElementById('req-tree');
+          if (t) { renderTree(t, e.reqBodyJson); collapseAll(t); }
+        }
+        if (e.parsedJson !== null) {
+          const t = document.getElementById('res-tree');
+          if (t) { renderTree(t, e.parsedJson); collapseAll(t); }
+        }
+      }
+
+      // ---- Action bar ----
+      function updateActionBar() {
+        const count = selectedSet.size;
+        if (count === 0) { actionBar.classList.add('hidden'); return; }
+        actionBar.classList.remove('hidden');
+        selectionInfo.textContent = `${count} selected`;
+        btnOpenViewer.textContent = count > 4
+          ? 'Open in JSON Viewer (first 4)'
+          : `Open in JSON Viewer${count > 1 ? ` (${count} slots)` : ''}`;
+        btnOpenCmp.disabled = count !== 2;
+        selectionHint.textContent = count > 1
+          ? 'Each entry loads into a separate memory slot.'
+          : '';
+      }
+
+      btnClearSel.addEventListener('click', () => {
+        selectedSet.clear();
+        renderTable();
+        updateActionBar();
+      });
+
+      btnOpenViewer.addEventListener('click', () => {
+        const idxs  = [...selectedSet].slice(0, 4);
+        const entries = idxs.map(i => allEntries[i]).filter(Boolean);
+        const keys  = ['pavironica_viewer_input','pavironica_viewer_m1','pavironica_viewer_m2','pavironica_viewer_m3'];
+        entries.forEach((e, i) => sessionStorage.setItem(keys[i], e.body || ''));
+        window.open('../PavironicaHTML/jsonViewer.html', '_blank');
+      });
+
+      btnOpenCmp.addEventListener('click', () => {
+        const [ia, ib] = [...selectedSet];
+        sessionStorage.setItem('pavironica_cmp_a', allEntries[ia]?.body ?? '');
+        sessionStorage.setItem('pavironica_cmp_b', allEntries[ib]?.body ?? '');
+        window.open('../PavironicaHTML/jsonComparator.html', '_blank');
+      });
+
+      // ---- Filters ----
+      function applyFilters() {
+        const q      = searchInput.value.toLowerCase();
+        const method = methodFilter.value;
+        const stF    = statusFilter.value;
+        const tyF    = typeFilter.value;
+
+        filteredEntries = allEntries.filter(e => {
+          if (q      && !e.url.toLowerCase().includes(q)) return false;
+          if (method && e.method !== method)               return false;
+          if (tyF === 'json' && !e.isJson)                 return false;
+          if (stF) {
+            const s = e.status;
+            if (stF === '2xx' && !(s >= 200 && s < 300)) return false;
+            if (stF === '3xx' && !(s >= 300 && s < 400)) return false;
+            if (stF === '4xx' && !(s >= 400 && s < 500)) return false;
+            if (stF === '5xx' && !(s >= 500))             return false;
+          }
+          return true;
+        });
+
+        renderTable();
+        updateStats();
+      }
+
+      function updateStats() {
+        const total    = allEntries.length;
+        const jsonCnt  = allEntries.filter(e => e.isJson).length;
+        const shown    = filteredEntries.length;
+        statusBar.textContent = `Showing ${shown} of ${total} entries — ${jsonCnt} contain JSON`;
+      }
+
+      let filterTimer = null;
+      searchInput.addEventListener('input',  () => { clearTimeout(filterTimer); filterTimer = setTimeout(applyFilters, 180); });
+      methodFilter.addEventListener('change', applyFilters);
+      statusFilter.addEventListener('change', applyFilters);
+      typeFilter.addEventListener('change',   applyFilters);
+
+      // ---- Load HAR ----
+      function loadHar(text) {
+        try {
+          allEntries      = parseHar(text);
+          filteredEntries = [];
+          selectedSet.clear();
+          previewIdx = null;
+          previewContent.innerHTML = '<div class="preview-empty">Click a row to preview its response.</div>';
+
+          dropZoneCard.classList.add('hidden');
+          controlsRow.classList.remove('hidden');
+          trackerLayout.classList.remove('hidden');
+          actionBar.classList.add('hidden');
+
+          // Default to JSON-only if there are JSON entries, else show all
+          const hasJson = allEntries.some(e => e.isJson);
+          typeFilter.value = hasJson ? 'json' : '';
+
+          applyFilters();
+        } catch (err) {
+          alert('Failed to parse HAR file:\n' + (err?.message ?? String(err)));
+        }
+      }
+
+      btnLoadAnother.addEventListener('click', () => {
+        allEntries = []; filteredEntries = []; selectedSet.clear(); previewIdx = null;
+        typeFilter.value = ''; methodFilter.value = ''; statusFilter.value = '';
+        searchInput.value = '';
+        dropZoneCard.classList.remove('hidden');
+        controlsRow.classList.add('hidden');
+        trackerLayout.classList.add('hidden');
+        actionBar.classList.add('hidden');
+        harFile.value = '';
+      });
+
+      function readFile(file) {
+        const reader = new FileReader();
+        reader.onload  = () => loadHar(reader.result ?? '');
+        reader.onerror = () => alert('Failed to read file.');
+        reader.readAsText(file);
+      }
+
+      // Drop zone
+      dropZone.addEventListener('click',    () => harFile.click());
+      dropZone.addEventListener('keydown',  ev => { if (ev.key === 'Enter' || ev.key === ' ') harFile.click(); });
+      dropZone.addEventListener('dragover', ev => { ev.preventDefault(); dropZone.classList.add('dragover'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+      dropZone.addEventListener('drop', ev => {
+        ev.preventDefault();
+        dropZone.classList.remove('dragover');
+        const f = ev.dataTransfer.files[0];
+        if (f) readFile(f);
+      });
+      harFile.addEventListener('change', () => { if (harFile.files[0]) readFile(harFile.files[0]); });
+    </script>
+  </body>
+</html>
