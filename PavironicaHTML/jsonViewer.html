@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -7,7 +7,6 @@
     <script>(function(){try{const t=localStorage.getItem('theme'); if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
     <link rel="stylesheet" href="../assets/css/style.css" />
     <style>
-      /* theme vars provided by shared CSS */
       * { box-sizing: border-box; }
       body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
       header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -21,7 +20,17 @@
       input[type="file"] { width: 100%; }
       input[type=number], input[type=text] { background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px; }
       input[type=number] { width:80px; }
-      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; }
+      /* Editor with gutter */
+      .editor-wrap { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input); }
+      .line-nums { flex-shrink: 0; width: 46px; padding: 10px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; color: var(--muted); text-align: right; overflow: hidden; user-select: none; }
+      .ln { display: block; padding: 0 7px 0 4px; }
+      .ln-even { background: rgba(128,128,128,0.07); }
+      .ln-err { background: rgba(251,113,133,0.22) !important; color: #fb7185 !important; }
+      #input { flex: 1; min-width: 0; min-height: 320px; resize: vertical; border: none; border-radius: 0; background: transparent; line-height: 18px; }
+      .json-error-banner { margin-top: 8px; padding: 8px 12px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.35); border-radius: 8px; font-size: 12px; color: #fb7185; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .jump-err-btn { background: transparent; border: 1px solid rgba(251,113,133,0.5); color: #fb7185; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; }
+      .jump-err-btn:hover { background: rgba(251,113,133,0.15); }
       pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
       .result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
       .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
@@ -30,12 +39,14 @@
       .ok { color: #34d399; }
       .warn { color: #fbbf24; }
       .jump-top { position: fixed; right: 20px; bottom: 20px; z-index: 1000; }
+      .font-size-controls { position: fixed; right: 20px; bottom: 64px; z-index: 1000; display: flex; gap: 6px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
+      .font-size-controls .btn { padding: 4px 10px; font-size: 15px; line-height: 1; }
       #graph-wrap { cursor: grab; min-width: 0; }
       #graph-wrap.panning { cursor: grabbing; }
       .hidden { display: none; }
 
       /* Tree view styles */
-      .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: var(--tree-font-size, 12px); }
       .node { line-height: 1.4; }
       .line { display: flex; align-items: center; gap: 6px; }
       .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; }
@@ -63,6 +74,8 @@
       .table-val { word-break: break-word; }
       .table-text { padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
       .table-children { display: flex; flex-direction: column; gap: 8px; }
+
+      /* Interactive split layout */
       .interactive-split { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: start; }
       .interactive-pane { min-width: 0; }
       .side-pane { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow: auto; display: flex; flex-direction: column; gap: 12px; }
@@ -76,6 +89,44 @@
       .search-nav .btn { flex: 1 1 0; }
       .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
       .line.path-selected { outline: 1px solid var(--accent); border-radius: 4px; background: rgba(34, 211, 238, 0.12); }
+
+      /* Comparator modal */
+      .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+      .modal-overlay.hidden { display: none; }
+      .modal { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: min(700px, 100%); max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+      .modal-header { display: flex; align-items: center; justify-content: space-between; }
+      .modal-header strong { font-size: 15px; }
+      .modal-close { background: transparent; border: none; color: var(--muted); font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }
+      .modal-close:hover { color: var(--text); }
+      .modal-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      .modal-col-title { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 10px; letter-spacing: 0.2px; }
+      .source-options { display: flex; flex-direction: column; gap: 8px; }
+      .source-option { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+      .source-option input[type="radio"] { cursor: pointer; accent-color: var(--accent); }
+      .source-option.disabled { opacity: 0.38; pointer-events: none; }
+      .source-extra { margin-top: 10px; }
+      .source-extra input[type="file"] { width: 100%; }
+      .source-extra textarea { width: 100%; height: 110px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11px; }
+      .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 4px; border-top: 1px solid var(--border); }
+      .modal-footer .modal-error { flex: 1; font-size: 12px; color: #fbbf24; }
+      .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 14px; }
+      .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+      @media (max-width: 560px) { .modal-cols { grid-template-columns: 1fr; } }
+
+      /* Multi-column tree layout */
+      #tree-columns { display: flex; gap: 12px; align-items: start; overflow-x: auto; }
+      .tree-column { flex: 1 1 0; min-width: 260px; }
+      .tree-column-header { font-size: 11px; font-weight: 600; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 8px; letter-spacing: 0.2px; }
+
+      /* Slot selector buttons */
+      .slot-btn { background: var(--input); color: var(--muted); border: 1px solid var(--border); padding: 3px 9px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: inherit; }
+      .slot-btn.slot-btn-active { border-color: var(--accent); color: var(--accent); background: rgba(34, 211, 238, 0.1); }
+      .slot-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .slot-btn:not(:disabled):hover { border-color: var(--accent-2); color: var(--text); }
+
+      /* Active-slot indicator in side pane */
+      .active-slot-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; opacity: 0.85; }
+
       @media (max-width: 980px) {
         .interactive-split { grid-template-columns: 1fr; }
       }
@@ -98,6 +149,7 @@
         <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
         <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
         <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
+        <button id="btn-open-comparator" class="btn" title="Send two JSONs to the JSON Comparator in a new tab">→ JSON Comparator</button>
         <span id="status" class="muted"></span>
       </div>
 
@@ -111,22 +163,40 @@
 
       <div id="input-card" class="card">
         <label>JSON (paste or choose a file)</label>
-        <textarea id="input" placeholder="{\n  \"hello\": \"world\"\n}"></textarea>
+        <div class="editor-wrap">
+          <div id="line-nums" class="line-nums" aria-hidden="true"></div>
+          <textarea id="input" placeholder="Paste JSON or load a file..."></textarea>
+        </div>
+        <div id="json-error-banner" class="json-error-banner hidden"></div>
       </div>
 
       <div id="tree-card" class="card result hidden">
-        <div class="muted" style="margin-bottom:8px;">Interactive View</div>
-        <div class="interactive-split">
-          <div class="interactive-pane">
-            <div id="tree" class="tree"></div>
+        <!-- Header row: title + slot selector -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+          <div class="muted">Interactive View</div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span class="muted" style="font-size:11px;">Visible:</span>
+            <button id="slot-btn-input" class="slot-btn slot-btn-active" data-slot="input" title="Toggle: show input textarea">Input</button>
+            <button id="slot-btn-m1"    class="slot-btn"                  data-slot="m1"    disabled title="Toggle: show M1">M1</button>
+            <button id="slot-btn-m2"    class="slot-btn"                  data-slot="m2"    disabled title="Toggle: show M2">M2</button>
+            <button id="slot-btn-m3"    class="slot-btn"                  data-slot="m3"    disabled title="Toggle: show M3">M3</button>
           </div>
+        </div>
+
+        <div class="interactive-split">
+          <!-- Column area -->
+          <div id="tree-columns" class="interactive-pane"></div>
+
+          <!-- Side pane: path + search -->
           <div class="side-pane">
             <div class="path-pane">
-              <div class="muted" style="margin-bottom:8px;">Selected path</div>
+              <div class="muted" style="margin-bottom:8px;">
+                Selected path<span id="path-slot-label"></span>
+              </div>
               <pre id="selected-path" class="path-output">Click a line on the left to see its path.</pre>
             </div>
             <div class="search-pane">
-              <div class="muted">Advanced search</div>
+              <div class="muted">Advanced search<span id="active-slot-label"></span></div>
               <div class="search-field">
                 <label for="advanced-search-query">Text search</label>
                 <input id="advanced-search-query" type="text" placeholder="Word, phrase, number" />
@@ -171,50 +241,166 @@
         </div>
       </div>
     </main>
+    <!-- JSON Comparator modal -->
+    <div id="comparator-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <strong>Send to JSON Comparator</strong>
+          <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+        </div>
+        <div class="modal-cols">
+          <div>
+            <div class="modal-col-title">JSON A</div>
+            <div id="source-options-a" class="source-options"></div>
+            <div id="source-extra-a" class="source-extra hidden"></div>
+          </div>
+          <div>
+            <div class="modal-col-title">JSON B</div>
+            <div id="source-options-b" class="source-options"></div>
+            <div id="source-extra-b" class="source-extra hidden"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-error" id="modal-error"></span>
+          <button class="btn-ghost" id="modal-cancel">Cancel</button>
+          <button class="btn" id="modal-go">Open in Comparator →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="font-size-controls" aria-label="Tree font size">
+      <span title="Tree font size">🔍</span>
+      <button id="btn-font-minus" class="btn" title="Decrease font size">−</button>
+      <span id="font-size-label" style="font-size:11px; color:var(--muted); min-width:28px; text-align:center;">12px</span>
+      <button id="btn-font-plus"  class="btn" title="Increase font size">+</button>
+    </div>
     <button id="btn-jump-top" class="btn jump-top hidden" aria-label="Jump to the top">Jump to the top</button>
 
     <script type="module">
       import { formatJson, renderTree, expandAll, collapseAll, renderGraph, renderJsonTable, setTableViewOpen, fitToContent, enablePanScroll } from "../PavironicaJS/jsonViewer.js";
 
-      const file   = document.getElementById('file');
-      const input  = document.getElementById('input');
-      const btn    = document.getElementById('btn-format');
-      const indent = document.getElementById('indent');
-      const status = document.getElementById('status');
-      const tree   = document.getElementById('tree');
-      const treeCard = document.getElementById('tree-card');
-      const graphSvg = document.getElementById('graph');
-      const graphWrap = document.getElementById('graph-wrap');
-      const graphCard = document.getElementById('graph-card');
-      const btnTreeView = document.getElementById('btn-tree-view');
-      const btnGraphView = document.getElementById('btn-graph-view');
-      const btnExpand = document.getElementById('btn-expand');
-      const btnCollapse = document.getElementById('btn-collapse');
-      const memBtn1 = document.getElementById('mem-1');
-      const memBtn2 = document.getElementById('mem-2');
-      const memBtn3 = document.getElementById('mem-3');
-      const btnTableView = document.getElementById('btn-table-view');
-      const tableCard = document.getElementById('table-card');
-      const tableView = document.getElementById('table-view');
-      const btnToggleInput = document.getElementById('btn-toggle-input');
-      const inputCard = document.getElementById('input-card');
-      const btnJumpTop = document.getElementById('btn-jump-top');
-      const selectedPath = document.getElementById('selected-path');
-      const advancedSearchQuery = document.getElementById('advanced-search-query');
+      const file              = document.getElementById('file');
+      const input             = document.getElementById('input');
+      const btn               = document.getElementById('btn-format');
+      const indent            = document.getElementById('indent');
+      const status            = document.getElementById('status');
+      const treeColumns       = document.getElementById('tree-columns');
+      const treeCard          = document.getElementById('tree-card');
+      const graphSvg          = document.getElementById('graph');
+      const graphWrap         = document.getElementById('graph-wrap');
+      const graphCard         = document.getElementById('graph-card');
+      const btnTreeView       = document.getElementById('btn-tree-view');
+      const btnGraphView      = document.getElementById('btn-graph-view');
+      const btnExpand         = document.getElementById('btn-expand');
+      const btnCollapse       = document.getElementById('btn-collapse');
+      const memBtn1           = document.getElementById('mem-1');
+      const memBtn2           = document.getElementById('mem-2');
+      const memBtn3           = document.getElementById('mem-3');
+      const btnTableView      = document.getElementById('btn-table-view');
+      const tableCard         = document.getElementById('table-card');
+      const tableView         = document.getElementById('table-view');
+      const btnToggleInput    = document.getElementById('btn-toggle-input');
+      const inputCard         = document.getElementById('input-card');
+      const btnJumpTop        = document.getElementById('btn-jump-top');
+      const selectedPath      = document.getElementById('selected-path');
+      const pathSlotLabel     = document.getElementById('path-slot-label');
+      const activeSlotLabel   = document.getElementById('active-slot-label');
+      const advancedSearchQuery         = document.getElementById('advanced-search-query');
       const advancedSearchCaseSensitive = document.getElementById('advanced-search-case-sensitive');
-      const advancedSearchWildcard = document.getElementById('advanced-search-wildcard');
-      const advancedSearchRound = document.getElementById('advanced-search-round');
-      const advancedSearchPath = document.getElementById('advanced-search-path');
-      const btnAdvancedSearch = document.getElementById('btn-advanced-search');
-      const advancedSearchInfo = document.getElementById('advanced-search-info');
-      const btnSearchPrev = document.getElementById('btn-search-prev');
-      const btnSearchNext = document.getElementById('btn-search-next');
+      const advancedSearchWildcard      = document.getElementById('advanced-search-wildcard');
+      const advancedSearchRound         = document.getElementById('advanced-search-round');
+      const advancedSearchPath          = document.getElementById('advanced-search-path');
+      const btnAdvancedSearch           = document.getElementById('btn-advanced-search');
+      const advancedSearchInfo          = document.getElementById('advanced-search-info');
+      const btnSearchPrev               = document.getElementById('btn-search-prev');
+      const btnSearchNext               = document.getElementById('btn-search-next');
+
+      // ---- Line-number gutter + error banner ----
+      const lineNums        = document.getElementById('line-nums');
+      const jsonErrorBanner = document.getElementById('json-error-banner');
+      let currentErrorLine  = -1;
+
+      function buildLineNums(count, errLine) {
+        const parts = [];
+        for (let i = 1; i <= count; i++) {
+          const cls = i === errLine ? 'ln ln-err' : (i % 2 === 0 ? 'ln ln-even' : 'ln');
+          parts.push(`<span class="${cls}">${i}</span>`);
+        }
+        lineNums.innerHTML = parts.join('');
+      }
+
+      function refreshLineNums() {
+        buildLineNums(input.value.split('\n').length, currentErrorLine);
+        lineNums.scrollTop = input.scrollTop;
+      }
+
+      function escHtml(s) {
+        return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      }
+
+      function extractErrorLocation(jsonText, err) {
+        const msg = String(err?.message ?? err ?? '');
+        // Firefox: "at line X column Y"
+        const ff = msg.match(/\bline\s+(\d+)\s+col(?:umn)?\s+(\d+)/i);
+        if (ff) return { line: +ff[1], col: +ff[2] };
+        // Chrome/V8: "at position N"
+        const ch = msg.match(/\bposition\s+(\d+)/i);
+        if (ch) {
+          const pos = Math.min(+ch[1], jsonText.length);
+          const before = jsonText.slice(0, pos);
+          const lines  = before.split('\n');
+          return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+        }
+        return { line: -1, col: -1 };
+      }
+
+      function jumpToLine(line, col) {
+        const lines = input.value.split('\n');
+        let pos = 0;
+        for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
+        pos += Math.max(0, col - 1);
+        input.setSelectionRange(pos, pos);
+        input.focus();
+        input.scrollTop = Math.max(0, (line - 1) * 18 - 60);
+        lineNums.scrollTop = input.scrollTop;
+      }
+
+      function showParseError(jsonText, err) {
+        const { line, col } = extractErrorLocation(jsonText, err);
+        currentErrorLine = line;
+        buildLineNums(jsonText.split('\n').length, currentErrorLine);
+        lineNums.scrollTop = input.scrollTop;
+        const locLabel = line > 0 ? `Line ${line}${col > 0 ? `, col ${col}` : ''}` : '';
+        const jumpBtn  = line > 0
+          ? `<button class="jump-err-btn" onclick="(function(){})()">↳ Jump to line ${line}</button>`
+          : '';
+        jsonErrorBanner.innerHTML =
+          `<span>⚠ ${locLabel ? `<strong>${locLabel}</strong> — ` : ''}${escHtml(err?.message ?? String(err))}</span>${jumpBtn}`;
+        jsonErrorBanner.classList.remove('hidden');
+        if (line > 0) {
+          jsonErrorBanner.querySelector('.jump-err-btn')?.addEventListener('click', () => jumpToLine(line, col));
+        }
+      }
+
+      function clearParseError() {
+        currentErrorLine = -1;
+        jsonErrorBanner.classList.add('hidden');
+        jsonErrorBanner.innerHTML = '';
+        refreshLineNums();
+      }
+
+      input.addEventListener('input',  () => { clearParseError(); refreshLineNums(); });
+      input.addEventListener('scroll', () => { lineNums.scrollTop = input.scrollTop; });
+      refreshLineNums();
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
         if (!f) return;
         const reader = new FileReader();
-        reader.onload = () => { target.value = reader.result ?? ''; };
+        reader.onload = () => {
+          target.value = reader.result ?? '';
+          if (target === input) { clearParseError(); refreshLineNums(); }
+        };
         reader.onerror = () => { target.value = ''; alert('Failed to read file: ' + reader.error); };
         reader.readAsText(f);
       }
@@ -223,11 +409,139 @@
 
       let currentView = 'none'; // 'tree' | 'graph' | 'table' | 'none'
       let inputHidden = false;
-      let selectedLine = null;
       let searchResults = [];
       let currentSearchIndex = -1;
       let lastSearchDescription = '';
 
+      // ---- Slot / multi-column state ----
+      const visibleSlots = new Set(['input']); // which slots are rendered as columns
+      let activeSlot = 'input';                // which column search/path pane targets
+      const columnStates = new Map();          // slot -> { treeEl, selectedLine }
+
+      function getSlotData(slot) {
+        if (slot === 'input') return input.value;
+        const i = parseInt(slot[1], 10) - 1;
+        return mem[i]?.value ?? '';
+      }
+
+      function getSlotLabel(slot) {
+        if (slot === 'input') return 'Input';
+        const i = parseInt(slot[1], 10) - 1;
+        const lbl = mem[i]?.label;
+        return lbl ? `M${i + 1}: ${lbl}` : `M${i + 1}`;
+      }
+
+      function getActiveTree() {
+        return columnStates.get(activeSlot)?.treeEl ?? null;
+      }
+
+      function setActiveSlot(slot) {
+        activeSlot = slot;
+        updateSidePaneLabels();
+      }
+
+      function updateSidePaneLabels() {
+        const tag = visibleSlots.size > 1
+          ? ` <span class="active-slot-tag">${getSlotLabel(activeSlot)}</span>`
+          : '';
+        pathSlotLabel.innerHTML  = tag;
+        activeSlotLabel.innerHTML = tag;
+      }
+
+      // ---- Slot selector buttons ----
+      function updateSlotButtons() {
+        document.querySelectorAll('.slot-btn').forEach((btn) => {
+          const slot = btn.dataset.slot;
+          btn.classList.toggle('slot-btn-active', visibleSlots.has(slot));
+          if (slot === 'input') { btn.textContent = 'Input'; return; }
+          const i = parseInt(slot[1], 10) - 1;
+          const hasData = mem[i]?.value != null && mem[i].value !== '';
+          btn.disabled = !hasData;
+          if (!hasData && visibleSlots.has(slot)) visibleSlots.delete(slot);
+          const lbl = mem[i]?.label;
+          btn.textContent = lbl ? `M${i+1}: ${truncateLabel(lbl, 10)}` : `M${i+1}`;
+          btn.title = `Toggle: show M${i+1}${lbl ? ' (' + lbl + ')' : ''}`;
+        });
+      }
+
+      function toggleSlot(slot) {
+        if (visibleSlots.has(slot)) {
+          if (visibleSlots.size === 1) return; // always keep at least one
+          visibleSlots.delete(slot);
+          if (activeSlot === slot) {
+            activeSlot = [...visibleSlots][0];
+          }
+        } else {
+          visibleSlots.add(slot);
+          activeSlot = slot; // focus the newly added column
+        }
+        updateSlotButtons();
+        if (currentView === 'tree') renderColumns();
+      }
+
+      document.querySelectorAll('.slot-btn').forEach((b) => {
+        b.addEventListener('click', () => toggleSlot(b.dataset.slot));
+      });
+
+      // ---- Column rendering ----
+      function renderColumns() {
+        treeColumns.innerHTML = '';
+        columnStates.clear();
+        resetSelectedPathPanel();
+        resetAdvancedSearch();
+
+        const slots = [...visibleSlots];
+        const isMulti = slots.length > 1;
+
+        for (const slot of slots) {
+          const col = document.createElement('div');
+          col.className = 'tree-column';
+          col.dataset.slot = slot;
+
+          if (isMulti) {
+            const hdr = document.createElement('div');
+            hdr.className = 'tree-column-header';
+            hdr.textContent = getSlotLabel(slot);
+            col.appendChild(hdr);
+          }
+
+          const treeEl = document.createElement('div');
+          treeEl.className = 'tree';
+          col.appendChild(treeEl);
+          treeColumns.appendChild(col);
+
+          const state = { treeEl, selectedLine: null };
+          columnStates.set(slot, state);
+
+          const dataText = getSlotData(slot);
+          try {
+            renderTree(treeEl, JSON.parse(dataText));
+            collapseAll(treeEl);
+            if (slot === 'input') clearParseError();
+          } catch (e) {
+            treeEl.textContent = (e?.message) ?? String(e);
+            if (slot === 'input') showParseError(dataText, e);
+          }
+
+          // Per-column click handler
+          treeEl.addEventListener('click', (ev) => {
+            const line = ev.target.closest('.line');
+            if (!line || !treeEl.contains(line)) return;
+            if (state.selectedLine) state.selectedLine.classList.remove('path-selected');
+            state.selectedLine = line;
+            line.classList.add('path-selected');
+            if (activeSlot !== slot) setActiveSlot(slot);
+            selectedPath.textContent = line.dataset.path || 'root>';
+          });
+        }
+
+        if (!visibleSlots.has(activeSlot)) {
+          activeSlot = [...visibleSlots][0] ?? 'input';
+        }
+        updateSidePaneLabels();
+      }
+
+      // ---- Helpers shared with search ----
       function setInputHidden(hidden) {
         inputHidden = !!hidden;
         inputCard.classList.toggle('hidden', inputHidden);
@@ -235,8 +549,10 @@
       }
 
       function resetSelectedPathPanel() {
-        if (selectedLine) selectedLine.classList.remove('path-selected');
-        selectedLine = null;
+        columnStates.forEach((state) => {
+          if (state.selectedLine) state.selectedLine.classList.remove('path-selected');
+          state.selectedLine = null;
+        });
         selectedPath.textContent = 'Click a line on the left to see its path.';
       }
 
@@ -264,157 +580,6 @@
         refreshSearchNav();
       }
 
-      function renderTreeCollapsedView() {
-        try {
-          renderTree(tree, JSON.parse(input.value));
-          collapseAll(tree);
-          resetSelectedPathPanel();
-          resetAdvancedSearch();
-        } catch (e) {
-          tree.textContent = (e && e.message) ? e.message : String(e);
-          resetSelectedPathPanel();
-          resetAdvancedSearch('Search unavailable until JSON is valid.');
-        }
-      }
-
-      tree.addEventListener('click', (ev) => {
-        const line = ev.target.closest('.line');
-        if (!line || !tree.contains(line)) return;
-        if (selectedLine) selectedLine.classList.remove('path-selected');
-        selectedLine = line;
-        selectedLine.classList.add('path-selected');
-        selectedPath.textContent = line.dataset.path || 'root>';
-      });
-
-      function truncateText(text, maxLen = 120) {
-        const raw = String(text ?? '');
-        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
-      }
-
-      function parseSearchLimitPath(pathText) {
-        const raw = String(pathText ?? '').trim();
-        if (!raw) return { segments: [], label: 'root>' };
-        const cleaned = raw.endsWith('>') ? raw.slice(0, -1) : raw;
-        const parts = cleaned.split('>').map((p) => p.trim()).filter((p) => p.length > 0);
-        if (!parts.length) return { segments: [], label: 'root>' };
-        if (parts[0].toLowerCase() === 'root') parts.shift();
-        return { segments: parts, label: formatPathText(parts) };
-      }
-
-      function resolvePathTarget(rootValue, pathSegments) {
-        let current = rootValue;
-        for (const rawSegment of pathSegments) {
-          const segment = String(rawSegment);
-          if (Array.isArray(current)) {
-            if (!/^\d+$/.test(segment)) {
-              return { ok: false, message: `Path segment "${segment}" is not a valid array index.` };
-            }
-            const index = Number(segment);
-            if (!Number.isInteger(index) || index < 0 || index >= current.length) {
-              return { ok: false, message: `Array index "${segment}" is out of range.` };
-            }
-            current = current[index];
-            continue;
-          }
-          if (current && typeof current === 'object') {
-            if (!Object.prototype.hasOwnProperty.call(current, segment)) {
-              return { ok: false, message: `Path segment "${segment}" was not found.` };
-            }
-            current = current[segment];
-            continue;
-          }
-          return { ok: false, message: `Path segment "${segment}" cannot be resolved on a scalar value.` };
-        }
-        return { ok: true, value: current };
-      }
-
-      function escapeRegex(text) {
-        return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      }
-
-      function buildTextMatcher(query, caseSensitive, useWildcard) {
-        const needle = String(query ?? '');
-        if (!useWildcard) {
-          const fixedNeedle = caseSensitive ? needle : needle.toLowerCase();
-          return (haystack) => {
-            const hay = String(haystack ?? '');
-            const source = caseSensitive ? hay : hay.toLowerCase();
-            return source.includes(fixedNeedle);
-          };
-        }
-
-        const regexSource = escapeRegex(needle).replace(/%/g, '.');
-        const flags = caseSensitive ? '' : 'i';
-        const regex = new RegExp(regexSource, flags);
-        return (haystack) => regex.test(String(haystack ?? ''));
-      }
-
-      function textIncludes(haystack, matcher) {
-        const hay = String(haystack ?? '');
-        return matcher(hay);
-      }
-
-      function collectSearchMatches(value, matcher, pathSegments = [], out = [], parentIsArray = false) {
-        if (Array.isArray(value)) {
-          value.forEach((item, idx) => collectSearchMatches(item, matcher, pathSegments.concat(idx), out, true));
-          return;
-        }
-        if (value && typeof value === 'object') {
-          Object.keys(value).forEach((k) => {
-            if (textIncludes(k, matcher)) {
-              out.push({
-                kind: 'key',
-                pathSegments: pathSegments.concat(k),
-                focusPath: pathSegments.concat(k),
-                matchText: k
-              });
-            }
-            collectSearchMatches(value[k], matcher, pathSegments.concat(k), out, false);
-          });
-          return;
-        }
-
-        const scalarText = value === null ? 'null' : String(value);
-        if (!textIncludes(scalarText, matcher)) return;
-
-        const focusPath = parentIsArray && pathSegments.length > 0
-          ? pathSegments.slice(0, -1)
-          : pathSegments.slice();
-
-        out.push({
-          kind: 'value',
-          pathSegments: pathSegments.slice(),
-          focusPath,
-          matchText: scalarText
-        });
-      }
-
-      function collectRoundedNumberMatches(value, roundedTarget, decimals, pathSegments = [], out = [], parentIsArray = false) {
-        if (Array.isArray(value)) {
-          value.forEach((item, idx) => collectRoundedNumberMatches(item, roundedTarget, decimals, pathSegments.concat(idx), out, true));
-          return;
-        }
-        if (value && typeof value === 'object') {
-          Object.keys(value).forEach((k) => {
-            collectRoundedNumberMatches(value[k], roundedTarget, decimals, pathSegments.concat(k), out, false);
-          });
-          return;
-        }
-        if (typeof value !== 'number' || !Number.isFinite(value)) return;
-        if (Number(value.toFixed(decimals)) !== roundedTarget) return;
-
-        const focusPath = parentIsArray && pathSegments.length > 0
-          ? pathSegments.slice(0, -1)
-          : pathSegments.slice();
-
-        out.push({
-          kind: 'rounded-number',
-          pathSegments: pathSegments.slice(),
-          focusPath,
-          matchText: String(value)
-        });
-      }
-
       function expandNodeForSearch(node) {
         if (!node) return;
         if (typeof node._ensureChildren === 'function') node._ensureChildren();
@@ -424,7 +589,9 @@
       }
 
       function expandPathInTree(pathSegments) {
-        const root = tree.querySelector('.node');
+        const activeTree = getActiveTree();
+        if (!activeTree) return;
+        const root = activeTree.querySelector('.node');
         if (!root) return;
 
         let current = root;
@@ -447,12 +614,101 @@
       }
 
       function findLineByPath(pathSegments) {
+        const activeTree = getActiveTree();
+        if (!activeTree) return null;
         const wantedPath = formatPathText(pathSegments);
-        const lines = tree.querySelectorAll('.line');
+        const lines = activeTree.querySelectorAll('.line');
         for (const line of lines) {
           if (line.dataset.path === wantedPath) return line;
         }
         return null;
+      }
+
+      function truncateText(text, maxLen = 120) {
+        const raw = String(text ?? '');
+        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      }
+
+      function parseSearchLimitPath(pathText) {
+        const raw = String(pathText ?? '').trim();
+        if (!raw) return { segments: [], label: 'root>' };
+        const cleaned = raw.endsWith('>') ? raw.slice(0, -1) : raw;
+        const parts = cleaned.split('>').map((p) => p.trim()).filter((p) => p.length > 0);
+        if (!parts.length) return { segments: [], label: 'root>' };
+        if (parts[0].toLowerCase() === 'root') parts.shift();
+        return { segments: parts, label: formatPathText(parts) };
+      }
+
+      function resolvePathTarget(rootValue, pathSegments) {
+        let current = rootValue;
+        for (const rawSegment of pathSegments) {
+          const segment = String(rawSegment);
+          if (Array.isArray(current)) {
+            if (!/^\d+$/.test(segment)) return { ok: false, message: `Path segment "${segment}" is not a valid array index.` };
+            const index = Number(segment);
+            if (!Number.isInteger(index) || index < 0 || index >= current.length) return { ok: false, message: `Array index "${segment}" is out of range.` };
+            current = current[index]; continue;
+          }
+          if (current && typeof current === 'object') {
+            if (!Object.prototype.hasOwnProperty.call(current, segment)) return { ok: false, message: `Path segment "${segment}" was not found.` };
+            current = current[segment]; continue;
+          }
+          return { ok: false, message: `Path segment "${segment}" cannot be resolved on a scalar value.` };
+        }
+        return { ok: true, value: current };
+      }
+
+      function escapeRegex(text) {
+        return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function buildTextMatcher(query, caseSensitive, useWildcard) {
+        const needle = String(query ?? '');
+        if (!useWildcard) {
+          const fixedNeedle = caseSensitive ? needle : needle.toLowerCase();
+          return (haystack) => {
+            const source = caseSensitive ? String(haystack ?? '') : String(haystack ?? '').toLowerCase();
+            return source.includes(fixedNeedle);
+          };
+        }
+        const regexSource = escapeRegex(needle).replace(/%/g, '.');
+        const regex = new RegExp(regexSource, caseSensitive ? '' : 'i');
+        return (haystack) => regex.test(String(haystack ?? ''));
+      }
+
+      function textIncludes(haystack, matcher) { return matcher(String(haystack ?? '')); }
+
+      function collectSearchMatches(value, matcher, pathSegments = [], out = [], parentIsArray = false) {
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => collectSearchMatches(item, matcher, pathSegments.concat(idx), out, true));
+          return;
+        }
+        if (value && typeof value === 'object') {
+          Object.keys(value).forEach((k) => {
+            if (textIncludes(k, matcher)) out.push({ kind: 'key', pathSegments: pathSegments.concat(k), focusPath: pathSegments.concat(k), matchText: k });
+            collectSearchMatches(value[k], matcher, pathSegments.concat(k), out, false);
+          });
+          return;
+        }
+        const scalarText = value === null ? 'null' : String(value);
+        if (!textIncludes(scalarText, matcher)) return;
+        const focusPath = parentIsArray && pathSegments.length > 0 ? pathSegments.slice(0, -1) : pathSegments.slice();
+        out.push({ kind: 'value', pathSegments: pathSegments.slice(), focusPath, matchText: scalarText });
+      }
+
+      function collectRoundedNumberMatches(value, roundedTarget, decimals, pathSegments = [], out = [], parentIsArray = false) {
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => collectRoundedNumberMatches(item, roundedTarget, decimals, pathSegments.concat(idx), out, true));
+          return;
+        }
+        if (value && typeof value === 'object') {
+          Object.keys(value).forEach((k) => collectRoundedNumberMatches(value[k], roundedTarget, decimals, pathSegments.concat(k), out, false));
+          return;
+        }
+        if (typeof value !== 'number' || !Number.isFinite(value)) return;
+        if (Number(value.toFixed(decimals)) !== roundedTarget) return;
+        const focusPath = parentIsArray && pathSegments.length > 0 ? pathSegments.slice(0, -1) : pathSegments.slice();
+        out.push({ kind: 'rounded-number', pathSegments: pathSegments.slice(), focusPath, matchText: String(value) });
       }
 
       function focusSearchResult(index) {
@@ -465,47 +721,40 @@
 
         const line = findLineByPath(hit.focusPath) || findLineByPath(hit.pathSegments);
         if (line) {
-          if (selectedLine) selectedLine.classList.remove('path-selected');
-          selectedLine = line;
-          selectedLine.classList.add('path-selected');
-          selectedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const state = columnStates.get(activeSlot);
+          if (state) {
+            if (state.selectedLine) state.selectedLine.classList.remove('path-selected');
+            state.selectedLine = line;
+            line.classList.add('path-selected');
+          }
+          line.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
-        selectedPath.textContent =
-          `${formatPathText(hit.pathSegments)}\n\nMatch ${currentSearchIndex + 1}/${total} (${hit.kind}): ${truncateText(hit.matchText)}`;
+        selectedPath.textContent = `${formatPathText(hit.pathSegments)}\n\nMatch ${currentSearchIndex + 1}/${total} (${hit.kind}): ${truncateText(hit.matchText)}`;
         setSearchInfo(`Found ${total} match${total === 1 ? '' : 'es'} for ${lastSearchDescription}. Showing ${currentSearchIndex + 1}/${total}.`);
         refreshSearchNav();
       }
 
       function runAdvancedSearch() {
-        const term = String(advancedSearchQuery.value ?? '').trim();
+        const term        = String(advancedSearchQuery.value ?? '').trim();
         const caseSensitive = !!advancedSearchCaseSensitive?.checked;
         const wildcardEnabled = !!advancedSearchWildcard?.checked;
-        const roundRaw = String(advancedSearchRound?.value ?? '').trim();
+        const roundRaw    = String(advancedSearchRound?.value ?? '').trim();
         const limitPathRaw = String(advancedSearchPath?.value ?? '').trim();
-        if (!term && !roundRaw) {
-          resetAdvancedSearch('Type text and/or a round number, then press Search.');
-          return;
-        }
+        if (!term && !roundRaw) { resetAdvancedSearch('Type text and/or a round number, then press Search.'); return; }
 
         let roundCfg = null;
         if (roundRaw) {
-          if (!/^[+-]?\d+(?:\.\d+)?$/.test(roundRaw)) {
-            resetAdvancedSearch('Round number must be a valid number, e.g. 1234.35');
-            return;
-          }
+          if (!/^[+-]?\d+(?:\.\d+)?$/.test(roundRaw)) { resetAdvancedSearch('Round number must be a valid number, e.g. 1234.35'); return; }
           const decimals = (roundRaw.split('.')[1] || '').length;
           const n = Number(roundRaw);
-          if (!Number.isFinite(n)) {
-            resetAdvancedSearch('Round number must be finite.');
-            return;
-          }
+          if (!Number.isFinite(n)) { resetAdvancedSearch('Round number must be finite.'); return; }
           roundCfg = { raw: roundRaw, decimals, roundedTarget: Number(n.toFixed(decimals)) };
         }
 
         let parsed;
         try {
-          parsed = JSON.parse(input.value);
+          parsed = JSON.parse(getSlotData(activeSlot));
         } catch (e) {
           resetAdvancedSearch('Search unavailable until JSON is valid.');
           selectedPath.textContent = 'Invalid JSON. Fix it, then run search again.';
@@ -520,13 +769,10 @@
           return;
         }
 
-        showView('tree');
+        if (currentView !== 'tree') showView('tree');
 
         const hits = [];
-        if (term) {
-          const matcher = buildTextMatcher(term, caseSensitive, wildcardEnabled);
-          collectSearchMatches(resolved.value, matcher, pathCfg.segments.slice(), hits, false);
-        }
+        if (term) { const matcher = buildTextMatcher(term, caseSensitive, wildcardEnabled); collectSearchMatches(resolved.value, matcher, pathCfg.segments.slice(), hits, false); }
         if (roundCfg) collectRoundedNumberMatches(resolved.value, roundCfg.roundedTarget, roundCfg.decimals, pathCfg.segments.slice(), hits, false);
         searchResults = hits;
         currentSearchIndex = -1;
@@ -541,13 +787,7 @@
         labels.push(`path ${pathCfg.label}`);
         lastSearchDescription = labels.join(' + ');
 
-        if (!searchResults.length) {
-          setSearchInfo(`Found 0 matches for ${lastSearchDescription}.`);
-          refreshSearchNav();
-          selectedPath.textContent = 'No matches found.';
-          return;
-        }
-
+        if (!searchResults.length) { setSearchInfo(`Found 0 matches for ${lastSearchDescription}.`); refreshSearchNav(); selectedPath.textContent = 'No matches found.'; return; }
         focusSearchResult(0);
       }
 
@@ -557,17 +797,17 @@
           treeCard.classList.remove('hidden');
           tableCard.classList.add('hidden');
           graphCard.classList.add('hidden');
-          renderTreeCollapsedView();
+          renderColumns();
         } else if (mode === 'table') {
           tableCard.classList.remove('hidden');
           treeCard.classList.add('hidden');
           graphCard.classList.add('hidden');
-          try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
+          try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); }
         } else if (mode === 'graph') {
           graphCard.classList.remove('hidden');
           tableCard.classList.add('hidden');
           treeCard.classList.add('hidden');
-          try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { /* show minimal message */ while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
+          try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
         } else {
           treeCard.classList.add('hidden');
           tableCard.classList.add('hidden');
@@ -580,65 +820,44 @@
         btn.disabled = true;
         try {
           const n = Math.max(0, Math.min(10, parseInt(indent.value, 10) || 0));
-          const formatted = formatJson(input.value, n);
-          input.value = formatted; // write back into the JSON box
+          input.value = formatJson(input.value, n);
           status.textContent = 'Done';
-          // Refresh current view if visible
-          if (currentView === 'tree') {
-            renderTreeCollapsedView();
-          } else if (currentView === 'table') {
-            try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
-          } else if (currentView === 'graph') {
-            try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
-          }
+          clearParseError();
+          refreshLineNums();
+          if (currentView === 'tree') renderColumns();
+          else if (currentView === 'table') { try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); } }
+          else if (currentView === 'graph') { try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); } }
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
-          // Keep content; show error under active view if any
-          if (currentView === 'tree') tree.textContent = (err && err.message) ? err.message : String(err);
-          else if (currentView === 'table') tableView.textContent = (err && err.message) ? err.message : String(err);
+          showParseError(input.value, err);
+          if (currentView === 'tree') { const t = getActiveTree(); if (t) t.textContent = (err?.message) ?? String(err); }
+          else if (currentView === 'table') tableView.textContent = (err?.message) ?? String(err);
         } finally {
           btn.disabled = false;
         }
       });
 
-      btnTreeView?.addEventListener('click', () => showView('tree'));
-      btnTableView?.addEventListener('click', () => showView('table'));
-      btnGraphView?.addEventListener('click', () => showView('graph'));
+      btnTreeView?.addEventListener('click',   () => showView('tree'));
+      btnTableView?.addEventListener('click',  () => showView('table'));
+      btnGraphView?.addEventListener('click',  () => showView('graph'));
       btnToggleInput?.addEventListener('click', () => setInputHidden(!inputHidden));
       btnAdvancedSearch?.addEventListener('click', runAdvancedSearch);
-      advancedSearchQuery?.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          runAdvancedSearch();
-        }
-      });
-      advancedSearchRound?.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          runAdvancedSearch();
-        }
-      });
-      advancedSearchPath?.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          runAdvancedSearch();
-        }
-      });
+      advancedSearchQuery?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
+      advancedSearchRound?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
+      advancedSearchPath?.addEventListener('keydown',   (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
       btnSearchPrev?.addEventListener('click', () => focusSearchResult(currentSearchIndex - 1));
       btnSearchNext?.addEventListener('click', () => focusSearchResult(currentSearchIndex + 1));
       setInputHidden(false);
-      function syncJumpTop() {
-        btnJumpTop.classList.toggle('hidden', window.scrollY < 240);
-      }
+
+      function syncJumpTop() { btnJumpTop.classList.toggle('hidden', window.scrollY < 240); }
       btnJumpTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
       window.addEventListener('scroll', syncJumpTop, { passive: true });
       syncJumpTop();
 
-      // Expand/Collapse buttons apply to the current view
       btnExpand.addEventListener('click', () => {
         if (currentView === 'tree') {
-          expandAll(tree);
+          columnStates.forEach(({ treeEl }) => expandAll(treeEl));
         } else if (currentView === 'table') {
           setTableViewOpen(tableView, true);
         } else if (currentView === 'graph') {
@@ -647,7 +866,7 @@
       });
       btnCollapse.addEventListener('click', () => {
         if (currentView === 'tree') {
-          collapseAll(tree);
+          columnStates.forEach(({ treeEl }) => collapseAll(treeEl));
         } else if (currentView === 'table') {
           setTableViewOpen(tableView, false);
         } else if (currentView === 'graph') {
@@ -655,10 +874,9 @@
         }
       });
 
-      // Enable mouse-drag panning within the graph wrapper without affecting the page
       enablePanScroll(graphWrap);
 
-      // Memory slots (ephemeral, page-scoped)
+      // ---- Memory slots ----
       const mem = [
         { value: null, label: '' },
         { value: null, label: '' },
@@ -687,6 +905,7 @@
           b.textContent = `${base}${labelPart}${hasData ? ' *' : ''}`;
           b.title = `Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.\nStored: ${buildSlotPreview(mem[i].value)}`;
         });
+        updateSlotButtons();
       }
 
       function renameSlot(i) {
@@ -698,20 +917,23 @@
         status.textContent = mem[i].label ? `Renamed M${i+1}` : `Cleared label for M${i+1}`;
       }
 
-      function saveSlot(i) { mem[i].value = input.value; refreshMemLabels(); status.textContent = `Saved to M${i+1}`; }
+      function saveSlot(i) {
+        mem[i].value = input.value;
+        refreshMemLabels();
+        status.textContent = `Saved to M${i+1}`;
+      }
+
       function loadSlot(i) {
         if (mem[i].value == null) { status.textContent = `M${i+1} empty`; return; }
         input.value = mem[i].value;
-        // Refresh current view if visible
-        if (currentView === 'tree') {
-          renderTreeCollapsedView();
-        } else if (currentView === 'table') {
-          try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e && e.message) ? e.message : String(e); }
-        } else if (currentView === 'graph') {
-          try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
-        }
+        clearParseError();
+        refreshLineNums();
+        if (currentView === 'tree') renderColumns();
+        else if (currentView === 'table') { try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); } }
+        else if (currentView === 'graph') { try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); } }
         status.textContent = `Loaded M${i+1}`;
       }
+
       [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('click', (ev) => {
         if (ev.shiftKey || ev.ctrlKey || ev.altKey) saveSlot(i); else loadSlot(i);
       }));
@@ -720,6 +942,163 @@
         renameSlot(i);
       }));
       refreshMemLabels();
+
+      // ---- JSON Comparator modal ----
+      const comparatorModal  = document.getElementById('comparator-modal');
+      const modalCloseBtn    = document.getElementById('modal-close');
+      const modalCancelBtn   = document.getElementById('modal-cancel');
+      const modalGoBtn       = document.getElementById('modal-go');
+      const modalErrorEl     = document.getElementById('modal-error');
+      const sourceOptionsElA = document.getElementById('source-options-a');
+      const sourceOptionsElB = document.getElementById('source-options-b');
+      const sourceExtraElA   = document.getElementById('source-extra-a');
+      const sourceExtraElB   = document.getElementById('source-extra-b');
+
+      function buildSourceOptions(container, extraContainer, side) {
+        container.innerHTML = '';
+        extraContainer.innerHTML = '';
+        extraContainer.classList.add('hidden');
+
+        const sources = [
+          { id: 'input', label: 'Input', available: true },
+          ...mem.map((m, i) => ({
+            id: `m${i + 1}`,
+            label: m.label ? `M${i + 1}: ${m.label}` : `M${i + 1}`,
+            available: m.value != null && m.value !== ''
+          })),
+          { id: 'file',  label: '📂  From file…', available: true },
+          { id: 'paste', label: '✏️  Paste…',     available: true }
+        ];
+
+        let firstAvailable = true;
+        for (const src of sources) {
+          const lbl = document.createElement('label');
+          lbl.className = 'source-option' + (src.available ? '' : ' disabled');
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = `src-${side}`;
+          radio.value = src.id;
+          radio.disabled = !src.available;
+          if (firstAvailable && src.available) { radio.checked = true; firstAvailable = false; }
+          lbl.appendChild(radio);
+          lbl.appendChild(document.createTextNode(' ' + src.label));
+          container.appendChild(lbl);
+
+          radio.addEventListener('change', () => {
+            if (!radio.checked) return;
+            extraContainer.innerHTML = '';
+            if (src.id === 'file') {
+              const fi = document.createElement('input');
+              fi.type = 'file';
+              fi.accept = 'application/json,.json,.txt';
+              extraContainer.appendChild(fi);
+              extraContainer.classList.remove('hidden');
+            } else if (src.id === 'paste') {
+              const ta = document.createElement('textarea');
+              ta.placeholder = `Paste JSON ${side.toUpperCase()} here…`;
+              extraContainer.appendChild(ta);
+              extraContainer.classList.remove('hidden');
+            } else {
+              extraContainer.classList.add('hidden');
+            }
+          });
+        }
+      }
+
+      function openComparatorModal() {
+        buildSourceOptions(sourceOptionsElA, sourceExtraElA, 'a');
+        buildSourceOptions(sourceOptionsElB, sourceExtraElB, 'b');
+        // Default B to first filled memory slot so the two sides differ by default
+        const bRadios = [...sourceOptionsElB.querySelectorAll('input[type="radio"]')].filter(r => !r.disabled);
+        const bMem = bRadios.find(r => r.value.startsWith('m'));
+        if (bMem) { bRadios.forEach(r => r.checked = false); bMem.checked = true; }
+        modalErrorEl.textContent = '';
+        comparatorModal.classList.remove('hidden');
+      }
+
+      function closeComparatorModal() { comparatorModal.classList.add('hidden'); }
+
+      function readFileAsync(fileInput) {
+        return new Promise((resolve, reject) => {
+          const f = fileInput.files?.[0];
+          if (!f) { reject(new Error('No file selected.')); return; }
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result ?? '');
+          reader.onerror = () => reject(new Error('Failed to read file: ' + reader.error));
+          reader.readAsText(f);
+        });
+      }
+
+      async function resolveSource(optionsEl, extraEl, side) {
+        const checked = optionsEl.querySelector('input[type="radio"]:checked');
+        if (!checked) throw new Error(`No source selected for JSON ${side.toUpperCase()}.`);
+        const val = checked.value;
+        if (val === 'input') return input.value;
+        if (val.startsWith('m')) { const i = parseInt(val[1], 10) - 1; return mem[i]?.value ?? ''; }
+        if (val === 'file') {
+          const fi = extraEl.querySelector('input[type="file"]');
+          if (!fi) throw new Error(`Choose a file for JSON ${side.toUpperCase()}.`);
+          return readFileAsync(fi);
+        }
+        if (val === 'paste') {
+          const ta = extraEl.querySelector('textarea');
+          return ta ? ta.value : '';
+        }
+        throw new Error(`Unknown source: ${val}`);
+      }
+
+      document.getElementById('btn-open-comparator').addEventListener('click', openComparatorModal);
+      modalCloseBtn.addEventListener('click', closeComparatorModal);
+      modalCancelBtn.addEventListener('click', closeComparatorModal);
+      comparatorModal.addEventListener('click', (ev) => { if (ev.target === comparatorModal) closeComparatorModal(); });
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !comparatorModal.classList.contains('hidden')) closeComparatorModal(); });
+
+      modalGoBtn.addEventListener('click', async () => {
+        modalErrorEl.textContent = '';
+        modalGoBtn.disabled = true;
+        try {
+          const [jsonA, jsonB] = await Promise.all([
+            resolveSource(sourceOptionsElA, sourceExtraElA, 'a'),
+            resolveSource(sourceOptionsElB, sourceExtraElB, 'b')
+          ]);
+          sessionStorage.setItem('pavironica_cmp_a', jsonA);
+          sessionStorage.setItem('pavironica_cmp_b', jsonB);
+          window.open('../PavironicaHTML/jsonComparator.html', '_blank');
+          closeComparatorModal();
+        } catch (err) {
+          modalErrorEl.textContent = err?.message ?? String(err);
+        } finally {
+          modalGoBtn.disabled = false;
+        }
+      });
+
+      // ---- Incoming data from JSON Tracker / other tools ----
+      try {
+        const keys = ['pavironica_viewer_input','pavironica_viewer_m1','pavironica_viewer_m2','pavironica_viewer_m3'];
+        const vals = keys.map(k => { const v = sessionStorage.getItem(k); sessionStorage.removeItem(k); return v; });
+        if (vals.some(v => v !== null)) {
+          if (vals[0] !== null) { input.value = vals[0]; clearParseError(); refreshLineNums(); }
+          if (vals[1] !== null) { mem[0].value = vals[1]; }
+          if (vals[2] !== null) { mem[1].value = vals[2]; }
+          if (vals[3] !== null) { mem[2].value = vals[3]; }
+          refreshMemLabels();
+          showView('tree');
+        }
+      } catch (_) {}
+
+      // ---- Tree font size controls ----
+      const FONT_MIN = 8, FONT_MAX = 24, FONT_STEP = 1;
+      let treeFontSize = 12;
+      const fontSizeLabel = document.getElementById('font-size-label');
+
+      function applyTreeFontSize(size) {
+        treeFontSize = Math.max(FONT_MIN, Math.min(FONT_MAX, size));
+        document.documentElement.style.setProperty('--tree-font-size', `${treeFontSize}px`);
+        fontSizeLabel.textContent = `${treeFontSize}px`;
+      }
+
+      document.getElementById('btn-font-minus').addEventListener('click', () => applyTreeFontSize(treeFontSize - FONT_STEP));
+      document.getElementById('btn-font-plus').addEventListener('click',  () => applyTreeFontSize(treeFontSize + FONT_STEP));
     </script>
   </body>
-  </html>
+</html>
