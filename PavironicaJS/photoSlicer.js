@@ -156,6 +156,9 @@ export async function sliceAndDownload(file, k, options = {}) {
     document.body.appendChild(a);
     a.click();
     a.remove();
+    // Safari on iOS coalesces rapid programmatic downloads and only processes
+    // the last one. A short delay lets each download start before the next is triggered.
+    await new Promise(resolve => setTimeout(resolve, 300));
     URL.revokeObjectURL(url);
   }
   return parts.length;

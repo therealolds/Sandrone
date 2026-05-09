@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panorama Stitcher · Pavironica</title>
+  <script>(function(){try{const t=localStorage.getItem('theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
+    header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    header a { color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; }
+    header a:hover { border-color: var(--accent); color: var(--text); }
+    header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
+    main { padding: 20px; max-width: clamp(900px, 95vw, 1600px); margin: 0 auto; display: grid; gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .controls { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+    label.ctrl { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 5px; }
+    input[type="file"] { color: var(--text); font-size: 13px; }
+    input[type="range"] { background: var(--input); accent-color: var(--accent); width: 130px; }
+    select { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+    .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer; white-space: nowrap; font-size: 13px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer; white-space: nowrap; font-size: 13px; }
+    .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+    .muted { color: var(--muted); font-size: 12px; }
+
+    /* Direction toggle */
+    .dir-group { display: flex; gap: 6px; }
+    .dir-btn { display: flex; align-items: center; gap: 5px; padding: 6px 12px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text); user-select: none; }
+    .dir-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(34,211,238,0.07); }
+
+    /* File order list */
+    #file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    .file-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; }
+    .file-item .num { font-size: 11px; font-weight: 700; color: var(--accent); width: 18px; text-align: center; flex-shrink: 0; }
+    .file-item .thumb { width: 48px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: #000; }
+    .file-item .info { flex: 1; min-width: 0; }
+    .file-item .fname { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-item .fdim  { font-size: 11px; color: var(--muted); }
+    .file-item .arrows { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+    .arrow-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; padding: 1px 6px; font-size: 11px; line-height: 1.5; }
+    .arrow-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .arrow-btn:disabled { opacity: 0.3; cursor: default; }
+
+    /* Pair score badges */
+    .pair-scores { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .score-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .score-badge.good { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid #4ade80; }
+    .score-badge.ok   { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid #fbbf24; }
+    .score-badge.poor { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid #f87171; }
+
+    /* Preview */
+    #preview-wrap { overflow: auto; max-height: 65vh; border-radius: 6px; }
+    #preview-canvas { display: block; max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="../index.html">← Back</a>
+    <h1>Panorama Stitcher</h1>
+    <span class="muted">Local-only · No uploads</span>
+  </header>
+
+  <main>
+    <!-- Controls -->
+    <div class="card">
+      <div class="controls">
+
+        <label class="ctrl">Images (select 2 or more, order matters)
+          <input id="files" type="file" accept="image/jpeg,image/png,image/heic,image/heif,.jpg,.jpeg,.png,.heic,.heif" multiple />
+        </label>
+
+        <label class="ctrl">Direction
+          <div class="dir-group">
+            <span class="dir-btn active" id="btn-h" data-dir="horizontal">↔ Horizontal</span>
+            <span class="dir-btn"        id="btn-v" data-dir="vertical">↕ Vertical</span>
+          </div>
+        </label>
+
+        <label class="ctrl" id="overlap-label">Overlap &nbsp;<span id="overlap-val" style="color:var(--text);font-weight:600;">30%</span>
+          <input id="overlap" type="range" min="0.05" max="0.70" step="0.01" value="0.30" />
+          <span class="muted">How much each shot overlaps with the next</span>
+        </label>
+
+        <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:2px;">
+          <button id="btn-stitch" class="btn" disabled>Stitch</button>
+          <button id="btn-dl"     class="btn-outline" disabled>Download</button>
+        </div>
+      </div>
+
+      <div id="status" class="muted" style="margin-top:10px;">Select 2 or more overlapping images to begin.</div>
+      <div id="file-list"></div>
+      <div id="pair-scores" class="pair-scores" style="display:none;"></div>
+    </div>
+
+    <!-- Preview -->
+    <div class="card" style="background:var(--result);">
+      <div class="muted" style="margin-bottom:8px;">Preview</div>
+      <div id="preview-wrap">
+        <canvas id="preview-canvas"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { computePanorama, downloadPanorama, loadImageFile } from '../PavironicaJS/panoramaStitcher.js';
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let orderedFiles = [];   // {file, thumbUrl, w, h}
+    let direction    = 'horizontal';
+    let lastCanvas   = null;
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const filesInput   = document.getElementById('files');
+    const fileList     = document.getElementById('file-list');
+    const pairScores   = document.getElementById('pair-scores');
+    const overlapRange = document.getElementById('overlap');
+    const overlapVal   = document.getElementById('overlap-val');
+    const btnStitch    = document.getElementById('btn-stitch');
+    const btnDl        = document.getElementById('btn-dl');
+    const statusEl     = document.getElementById('status');
+    const previewWrap  = document.getElementById('preview-wrap');
+    const previewCanvas= document.getElementById('preview-canvas');
+
+    // ── Direction toggle ─────────────────────────────────────────────────────
+    document.querySelectorAll('.dir-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        direction = btn.dataset.dir;
+      });
+    });
+
+    // ── Overlap slider ───────────────────────────────────────────────────────
+    overlapRange.addEventListener('input', () => {
+      overlapVal.textContent = Math.round(parseFloat(overlapRange.value) * 100) + '%';
+    });
+
+    // ── File input ───────────────────────────────────────────────────────────
+    filesInput.addEventListener('change', async () => {
+      // Revoke old thumb URLs
+      orderedFiles.forEach(f => f.thumbUrl && URL.revokeObjectURL(f.thumbUrl));
+      orderedFiles = [];
+      pairScores.style.display = 'none';
+      pairScores.innerHTML = '';
+      previewCanvas.width  = 0;
+      previewCanvas.height = 0;
+      lastCanvas = null;
+      btnDl.disabled = true;
+
+      const raw = Array.from(filesInput.files);
+      if (!raw.length) { renderFileList(); updateStitchBtn(); return; }
+
+      setStatus('Reading image info…');
+      orderedFiles = await Promise.all(raw.map(async file => {
+        const entry = { file, thumbUrl: null, w: '?', h: '?' };
+        try {
+          const bmp = await createImageBitmapSafe(file);
+          entry.w = bmp.width  ?? bmp.naturalWidth;
+          entry.h = bmp.height ?? bmp.naturalHeight;
+          // Build thumb URL for display
+          const tc = document.createElement('canvas');
+          tc.width  = 80; tc.height = 60;
+          tc.getContext('2d').drawImage(bmp, 0, 0, 80, 60);
+          entry.thumbUrl = tc.toDataURL('image/jpeg', 0.5);
+          if (bmp.close) bmp.close();
+        } catch (_) {}
+        return entry;
+      }));
+
+      renderFileList();
+      updateStitchBtn();
+      setStatus(orderedFiles.length >= 2
+        ? `${orderedFiles.length} image(s) loaded. Adjust overlap if needed, then click Stitch.`
+        : 'Select at least 2 images.');
+    });
+
+    // Reuse the same loader as the stitcher (handles JPEG, PNG and HEIC)
+    const createImageBitmapSafe = loadImageFile;
+
+    // ── File list renderer ───────────────────────────────────────────────────
+    function renderFileList() {
+      fileList.innerHTML = '';
+      orderedFiles.forEach((entry, i) => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+          <span class="num">${i + 1}</span>
+          ${entry.thumbUrl
+            ? `<img class="thumb" src="${entry.thumbUrl}" alt="" />`
+            : `<div class="thumb"></div>`}
+          <div class="info">
+            <div class="fname">${entry.file.name}</div>
+            <div class="fdim">${entry.w} × ${entry.h} px &nbsp;·&nbsp; ${(entry.file.size / 1024 / 1024).toFixed(1)} MB</div>
+          </div>
+          <div class="arrows">
+            <button class="arrow-btn" data-i="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''} title="Move up">▲</button>
+            <button class="arrow-btn" data-i="${i}" data-dir="1"  ${i === orderedFiles.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+          </div>`;
+        fileList.appendChild(div);
+      });
+
+      fileList.querySelectorAll('.arrow-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.i, 10);
+          const to  = idx + parseInt(btn.dataset.dir, 10);
+          if (to < 0 || to >= orderedFiles.length) return;
+          [orderedFiles[idx], orderedFiles[to]] = [orderedFiles[to], orderedFiles[idx]];
+          renderFileList();
+        });
+      });
+    }
+
+    function updateStitchBtn() {
+      btnStitch.disabled = orderedFiles.length < 2;
+    }
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+
+    // ── Stitch ───────────────────────────────────────────────────────────────
+    btnStitch.addEventListener('click', async () => {
+      if (orderedFiles.length < 2) return;
+      btnStitch.disabled = true;
+      btnDl.disabled     = true;
+      pairScores.style.display = 'none';
+      pairScores.innerHTML = '';
+      previewCanvas.width  = 0;
+      previewCanvas.height = 0;
+      lastCanvas = null;
+
+      const files   = orderedFiles.map(e => e.file);
+      const overlap = parseFloat(overlapRange.value);
+
+      try {
+        const { canvas, scores } = await computePanorama(
+          files, direction, overlap,
+          msg => setStatus(msg)
+        );
+
+        lastCanvas = canvas;
+
+        // Draw scaled preview
+        const maxPreviewW = previewWrap.clientWidth || 800;
+        const scale = Math.min(1, maxPreviewW / canvas.width);
+        previewCanvas.width  = Math.round(canvas.width  * scale);
+        previewCanvas.height = Math.round(canvas.height * scale);
+        const pCtx = previewCanvas.getContext('2d');
+        pCtx.drawImage(canvas, 0, 0, previewCanvas.width, previewCanvas.height);
+
+        // Show alignment scores
+        pairScores.innerHTML = '<span class="muted" style="align-self:center;">Alignment quality per pair:</span>';
+        scores.forEach((score, i) => {
+          const quality = score > 0.80 ? 'good' : score > 0.55 ? 'ok' : 'poor';
+          const label   = score > 0.80 ? 'Good' : score > 0.55 ? 'OK'  : 'Poor';
+          const span = document.createElement('span');
+          span.className = `score-badge ${quality}`;
+          span.textContent = `${orderedFiles[i].file.name.split('.')[0]} → ${orderedFiles[i+1].file.name.split('.')[0]}: ${label} (${score.toFixed(2)})`;
+          pairScores.appendChild(span);
+        });
+        pairScores.style.display = 'flex';
+
+        if (scores.some(s => s < 0.55)) {
+          setStatus('Done — but some pairs have poor alignment. Try adjusting the overlap slider.');
+        } else {
+          setStatus(`Panorama ready: ${canvas.width} × ${canvas.height} px`);
+        }
+
+        btnDl.disabled = false;
+      } catch (e) {
+        setStatus((e && e.message) ? e.message : String(e));
+      } finally {
+        btnStitch.disabled = false;
+      }
+    });
+
+    // ── Download ─────────────────────────────────────────────────────────────
+    btnDl.addEventListener('click', async () => {
+      if (!lastCanvas) return;
+      btnDl.disabled = true;
+      try {
+        // Build filename from first and last image names
+        const first = orderedFiles[0].file.name.replace(/\.[^.]+$/, '');
+        const last  = orderedFiles[orderedFiles.length - 1].file.name.replace(/\.[^.]+$/, '');
+        const fname = `panorama_${first}_${last}.jpg`;
+        await downloadPanorama(lastCanvas, fname);
+      } finally {
+        btnDl.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
