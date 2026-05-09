@@ -148,6 +148,31 @@ export async function sliceImageFile(file, k, { format = 'auto', quality = 0.92,
 
 export async function sliceAndDownload(file, k, options = {}) {
   const parts = await sliceImageFile(file, k, options);
+
+  // Safari on iOS blocks programmatic anchor clicks from async code — only the
+  // last one ever fires regardless of delays. The Web Share API is the correct
+  // path on touch-primary devices: it opens the native share sheet so the user
+  // can save all slices to Photos or Files in one step.
+  const isTouchPrimary = navigator.maxTouchPoints > 0 ||
+    window.matchMedia('(pointer: coarse)').matches;
+
+  if (isTouchPrimary && typeof navigator.canShare === 'function') {
+    const shareFiles = parts.map(
+      p => new File([p.blob], p.filename, { type: p.blob.type })
+    );
+    if (navigator.canShare({ files: shareFiles })) {
+      try {
+        await navigator.share({ files: shareFiles });
+        return parts.length;
+      } catch (err) {
+        if (err.name === 'AbortError') return parts.length; // user dismissed the sheet
+        // share failed for another reason — fall through to anchor downloads
+      }
+    }
+  }
+
+  // Desktop / non-share browsers: sequential downloads with a gap so Safari
+  // desktop doesn't coalesce back-to-back clicks.
   for (const p of parts) {
     const url = URL.createObjectURL(p.blob);
     const a = document.createElement('a');
@@ -156,8 +181,6 @@ export async function sliceAndDownload(file, k, options = {}) {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    // Safari on iOS coalesces rapid programmatic downloads and only processes
-    // the last one. A short delay lets each download start before the next is triggered.
     await new Promise(resolve => setTimeout(resolve, 300));
     URL.revokeObjectURL(url);
   }
