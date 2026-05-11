@@ -206,8 +206,18 @@
                 <label><input id="advanced-search-wildcard" type="checkbox" /> % for wildcard</label>
               </div>
               <div class="search-field">
-                <label for="advanced-search-round">Round number</label>
-                <input id="advanced-search-round" type="text" placeholder="Search for numbers rounded = one in input" />
+                <label>Number search</label>
+                <div class="search-row" style="flex-wrap:wrap; align-items:center;">
+                  <input id="advanced-search-num-key" type="text" placeholder="Key (optional)" style="flex:1 1 70px; min-width:60px;" />
+                  <select id="advanced-search-num-op" style="background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;flex-shrink:0;">
+                    <option value="eq">= equal</option>
+                    <option value="ne">≠ different</option>
+                    <option value="gt">&gt; greater</option>
+                    <option value="lt">&lt; lower</option>
+                  </select>
+                  <input id="advanced-search-num-val" type="text" placeholder="Number" style="flex:1 1 70px; min-width:60px;" />
+                </div>
+                <label style="margin-top:4px;"><input id="advanced-search-num-round" type="checkbox" /> Round (match rounded value)</label>
               </div>
               <div class="search-field">
                 <label for="advanced-search-path">Limit search path</label>
@@ -308,7 +318,10 @@
       const advancedSearchQuery         = document.getElementById('advanced-search-query');
       const advancedSearchCaseSensitive = document.getElementById('advanced-search-case-sensitive');
       const advancedSearchWildcard      = document.getElementById('advanced-search-wildcard');
-      const advancedSearchRound         = document.getElementById('advanced-search-round');
+      const advancedSearchNumKey   = document.getElementById('advanced-search-num-key');
+      const advancedSearchNumOp    = document.getElementById('advanced-search-num-op');
+      const advancedSearchNumVal   = document.getElementById('advanced-search-num-val');
+      const advancedSearchNumRound = document.getElementById('advanced-search-num-round');
       const advancedSearchPath          = document.getElementById('advanced-search-path');
       const btnAdvancedSearch           = document.getElementById('btn-advanced-search');
       const advancedSearchInfo          = document.getElementById('advanced-search-info');
@@ -662,6 +675,19 @@
         return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       }
 
+      function parseKeyValueQuery(term) {
+        const colonIdx = term.indexOf(': ');
+        if (colonIdx === -1) return null;
+        const keyPart = term.slice(0, colonIdx).trim();
+        if (!keyPart) return null;
+        let valPart = term.slice(colonIdx + 2).trim();
+        if ((valPart.startsWith('"') && valPart.endsWith('"')) ||
+            (valPart.startsWith("'") && valPart.endsWith("'"))) {
+          valPart = valPart.slice(1, -1);
+        }
+        return { key: keyPart, value: valPart };
+      }
+
       function buildTextMatcher(query, caseSensitive, useWildcard) {
         const needle = String(query ?? '');
         if (!useWildcard) {
@@ -696,19 +722,49 @@
         out.push({ kind: 'value', pathSegments: pathSegments.slice(), focusPath, matchText: scalarText });
       }
 
-      function collectRoundedNumberMatches(value, roundedTarget, decimals, pathSegments = [], out = [], parentIsArray = false) {
+      function collectKeyValueMatches(value, keyMatcher, valMatcher, pathSegments = [], out = []) {
         if (Array.isArray(value)) {
-          value.forEach((item, idx) => collectRoundedNumberMatches(item, roundedTarget, decimals, pathSegments.concat(idx), out, true));
+          value.forEach((item, idx) => collectKeyValueMatches(item, keyMatcher, valMatcher, pathSegments.concat(idx), out));
           return;
         }
         if (value && typeof value === 'object') {
-          Object.keys(value).forEach((k) => collectRoundedNumberMatches(value[k], roundedTarget, decimals, pathSegments.concat(k), out, false));
+          Object.keys(value).forEach((k) => {
+            if (keyMatcher(k)) {
+              const child = value[k];
+              if (child === null || typeof child !== 'object') {
+                const scalar = child === null ? 'null' : String(child);
+                if (valMatcher(scalar)) {
+                  const path = pathSegments.concat(k);
+                  out.push({ kind: 'key-value', pathSegments: path, focusPath: path, matchText: `${k}: ${scalar}` });
+                }
+              }
+            }
+            collectKeyValueMatches(value[k], keyMatcher, valMatcher, pathSegments.concat(k), out);
+          });
+        }
+      }
+
+      function collectNumberMatches(value, numCfg, pathSegments = [], out = [], parentIsArray = false, parentKey = null) {
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => collectNumberMatches(item, numCfg, pathSegments.concat(idx), out, true, null));
+          return;
+        }
+        if (value && typeof value === 'object') {
+          Object.keys(value).forEach((k) => collectNumberMatches(value[k], numCfg, pathSegments.concat(k), out, false, k));
           return;
         }
         if (typeof value !== 'number' || !Number.isFinite(value)) return;
-        if (Number(value.toFixed(decimals)) !== roundedTarget) return;
+        if (numCfg.keyFilter && (parentKey === null || !String(parentKey).toLowerCase().includes(numCfg.keyFilter.toLowerCase()))) return;
+        const cmp = numCfg.useRound ? Number(value.toFixed(numCfg.decimals)) : value;
+        const t   = numCfg.target;
+        const hit = numCfg.operator === 'eq' ? cmp === t
+                  : numCfg.operator === 'ne' ? cmp !== t
+                  : numCfg.operator === 'gt' ? cmp > t
+                  : numCfg.operator === 'lt' ? cmp < t
+                  : cmp === t;
+        if (!hit) return;
         const focusPath = parentIsArray && pathSegments.length > 0 ? pathSegments.slice(0, -1) : pathSegments.slice();
-        out.push({ kind: 'rounded-number', pathSegments: pathSegments.slice(), focusPath, matchText: String(value) });
+        out.push({ kind: 'number', pathSegments: pathSegments.slice(), focusPath, matchText: String(value) });
       }
 
       function focusSearchResult(index) {
@@ -739,17 +795,21 @@
         const term        = String(advancedSearchQuery.value ?? '').trim();
         const caseSensitive = !!advancedSearchCaseSensitive?.checked;
         const wildcardEnabled = !!advancedSearchWildcard?.checked;
-        const roundRaw    = String(advancedSearchRound?.value ?? '').trim();
+        const numRaw      = String(advancedSearchNumVal?.value ?? '').trim();
         const limitPathRaw = String(advancedSearchPath?.value ?? '').trim();
-        if (!term && !roundRaw) { resetAdvancedSearch('Type text and/or a round number, then press Search.'); return; }
+        if (!term && !numRaw) { resetAdvancedSearch('Type text and/or a number, then press Search.'); return; }
 
-        let roundCfg = null;
-        if (roundRaw) {
-          if (!/^[+-]?\d+(?:\.\d+)?$/.test(roundRaw)) { resetAdvancedSearch('Round number must be a valid number, e.g. 1234.35'); return; }
-          const decimals = (roundRaw.split('.')[1] || '').length;
-          const n = Number(roundRaw);
-          if (!Number.isFinite(n)) { resetAdvancedSearch('Round number must be finite.'); return; }
-          roundCfg = { raw: roundRaw, decimals, roundedTarget: Number(n.toFixed(decimals)) };
+        let numCfg = null;
+        if (numRaw) {
+          if (!/^[+-]?\d+(?:\.\d+)?$/.test(numRaw)) { resetAdvancedSearch('Number must be a valid number, e.g. 1234.35'); return; }
+          const n = Number(numRaw);
+          if (!Number.isFinite(n)) { resetAdvancedSearch('Number must be finite.'); return; }
+          const useRound = !!advancedSearchNumRound?.checked;
+          const decimals = useRound ? (numRaw.split('.')[1] || '').length : 0;
+          const target   = useRound ? Number(n.toFixed(decimals)) : n;
+          const operator = advancedSearchNumOp?.value || 'eq';
+          const keyFilter = String(advancedSearchNumKey?.value ?? '').trim();
+          numCfg = { raw: numRaw, decimals, target, useRound, operator, keyFilter };
         }
 
         let parsed;
@@ -772,8 +832,18 @@
         if (currentView !== 'tree') showView('tree');
 
         const hits = [];
-        if (term) { const matcher = buildTextMatcher(term, caseSensitive, wildcardEnabled); collectSearchMatches(resolved.value, matcher, pathCfg.segments.slice(), hits, false); }
-        if (roundCfg) collectRoundedNumberMatches(resolved.value, roundCfg.roundedTarget, roundCfg.decimals, pathCfg.segments.slice(), hits, false);
+        if (term) {
+          const kvParsed = parseKeyValueQuery(term);
+          if (kvParsed) {
+            const keyMatcher = buildTextMatcher(kvParsed.key, caseSensitive, wildcardEnabled);
+            const valMatcher = buildTextMatcher(kvParsed.value, caseSensitive, wildcardEnabled);
+            collectKeyValueMatches(resolved.value, keyMatcher, valMatcher, pathCfg.segments.slice(), hits);
+          } else {
+            const matcher = buildTextMatcher(term, caseSensitive, wildcardEnabled);
+            collectSearchMatches(resolved.value, matcher, pathCfg.segments.slice(), hits, false);
+          }
+        }
+        if (numCfg) collectNumberMatches(resolved.value, numCfg, pathCfg.segments.slice(), hits, false, null);
         searchResults = hits;
         currentSearchIndex = -1;
         const labels = [];
@@ -783,7 +853,12 @@
           if (wildcardEnabled) opts.push('% wildcard');
           labels.push(`text "${term}"${opts.length ? ` (${opts.join(', ')})` : ''}`);
         }
-        if (roundCfg) labels.push(`round number ${roundCfg.raw} (${roundCfg.decimals} dp)`);
+        if (numCfg) {
+          const opLabel  = { eq: '=', ne: '≠', gt: '>', lt: '<' }[numCfg.operator] ?? '=';
+          const rndLabel = numCfg.useRound ? ` rounded to ${numCfg.decimals} dp` : '';
+          const keyLabel = numCfg.keyFilter ? ` at key "${numCfg.keyFilter}"` : '';
+          labels.push(`number ${opLabel} ${numCfg.raw}${rndLabel}${keyLabel}`);
+        }
         labels.push(`path ${pathCfg.label}`);
         lastSearchDescription = labels.join(' + ');
 
@@ -844,7 +919,8 @@
       btnToggleInput?.addEventListener('click', () => setInputHidden(!inputHidden));
       btnAdvancedSearch?.addEventListener('click', runAdvancedSearch);
       advancedSearchQuery?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
-      advancedSearchRound?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
+      advancedSearchNumVal?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
+      advancedSearchNumKey?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
       advancedSearchPath?.addEventListener('keydown',   (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
       btnSearchPrev?.addEventListener('click', () => focusSearchResult(currentSearchIndex - 1));
       btnSearchNext?.addEventListener('click', () => focusSearchResult(currentSearchIndex + 1));
