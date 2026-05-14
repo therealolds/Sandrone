@@ -38,8 +38,8 @@
       .muted { color: var(--muted); }
       .ok { color: #34d399; }
       .warn { color: #fbbf24; }
-      .jump-top { position: fixed; right: 20px; bottom: 20px; z-index: 1000; }
-      .font-size-controls { position: fixed; right: 20px; bottom: 64px; z-index: 1000; display: flex; gap: 6px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
+      .tools-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .font-size-controls { display: flex; gap: 6px; align-items: center; }
       .font-size-controls .btn { padding: 4px 10px; font-size: 15px; line-height: 1; }
       #graph-wrap { cursor: grab; min-width: 0; }
       #graph-wrap.panning { cursor: grabbing; }
@@ -87,6 +87,11 @@
       .search-flags { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
       .search-nav { display: flex; gap: 8px; }
       .search-nav .btn { flex: 1 1 0; }
+      .num-stats { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
+      .num-stats.hidden { display: none; }
+      .num-stats-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
+      .num-stats-label { color: var(--muted); }
+      .num-stats-val { color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
       .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
       .line.path-selected { outline: 1px solid var(--accent); border-radius: 4px; background: rgba(34, 211, 238, 0.12); }
 
@@ -206,6 +211,10 @@
                 <label><input id="advanced-search-wildcard" type="checkbox" /> % for wildcard</label>
               </div>
               <div class="search-field">
+                <label for="advanced-search-path">Limit search path</label>
+                <input id="advanced-search-path" type="text" placeholder="A path from above to narrow the search" />
+              </div>
+              <div class="search-field">
                 <label>Number search</label>
                 <div class="search-row" style="flex-wrap:wrap; align-items:center;">
                   <input id="advanced-search-num-key" type="text" placeholder="Key (optional)" style="flex:1 1 70px; min-width:60px;" />
@@ -217,11 +226,11 @@
                   </select>
                   <input id="advanced-search-num-val" type="text" placeholder="Number" style="flex:1 1 70px; min-width:60px;" />
                 </div>
-                <label style="margin-top:4px;"><input id="advanced-search-num-round" type="checkbox" /> Round (match rounded value)</label>
-              </div>
-              <div class="search-field">
-                <label for="advanced-search-path">Limit search path</label>
-                <input id="advanced-search-path" type="text" placeholder="A path from above to narrow the search" />
+                <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:4px;">
+                  <label><input id="advanced-search-num-round" type="checkbox" /> Round (match rounded value)</label>
+                  <label><input id="advanced-search-num-stats" type="checkbox" /> Show statistics</label>
+                </div>
+                <div id="num-stats-panel" class="num-stats hidden"></div>
               </div>
               <div class="search-row">
                 <button id="btn-advanced-search" class="btn">Search</button>
@@ -231,6 +240,16 @@
                 <button id="btn-search-prev" class="btn" disabled>Previous</button>
                 <button id="btn-search-next" class="btn" disabled>Next</button>
               </div>
+            </div>
+            <div class="tools-pane">
+              <div class="muted">View tools</div>
+              <div class="font-size-controls" aria-label="Tree font size">
+                <span title="Tree font size">🔍</span>
+                <button id="btn-font-minus" class="btn" title="Decrease font size">−</button>
+                <span id="font-size-label" style="font-size:11px; color:var(--muted); min-width:28px; text-align:center;">12px</span>
+                <button id="btn-font-plus" class="btn" title="Increase font size">+</button>
+              </div>
+              <button id="btn-jump-top" class="btn" aria-label="Jump to the top">Jump to the top</button>
             </div>
           </div>
         </div>
@@ -278,13 +297,6 @@
       </div>
     </div>
 
-    <div class="font-size-controls" aria-label="Tree font size">
-      <span title="Tree font size">🔍</span>
-      <button id="btn-font-minus" class="btn" title="Decrease font size">−</button>
-      <span id="font-size-label" style="font-size:11px; color:var(--muted); min-width:28px; text-align:center;">12px</span>
-      <button id="btn-font-plus"  class="btn" title="Increase font size">+</button>
-    </div>
-    <button id="btn-jump-top" class="btn jump-top hidden" aria-label="Jump to the top">Jump to the top</button>
 
     <script type="module">
       import { formatJson, renderTree, expandAll, collapseAll, renderGraph, renderJsonTable, setTableViewOpen, fitToContent, enablePanScroll } from "../PavironicaJS/jsonViewer.js";
@@ -322,6 +334,8 @@
       const advancedSearchNumOp    = document.getElementById('advanced-search-num-op');
       const advancedSearchNumVal   = document.getElementById('advanced-search-num-val');
       const advancedSearchNumRound = document.getElementById('advanced-search-num-round');
+      const advancedSearchNumStats = document.getElementById('advanced-search-num-stats');
+      const numStatsPanel          = document.getElementById('num-stats-panel');
       const advancedSearchPath          = document.getElementById('advanced-search-path');
       const btnAdvancedSearch           = document.getElementById('btn-advanced-search');
       const advancedSearchInfo          = document.getElementById('advanced-search-info');
@@ -425,6 +439,7 @@
       let searchResults = [];
       let currentSearchIndex = -1;
       let lastSearchDescription = '';
+      let lastSearchHits = [];
 
       // ---- Slot / multi-column state ----
       const visibleSlots = new Set(['input']); // which slots are rendered as columns
@@ -591,6 +606,41 @@
         lastSearchDescription = '';
         setSearchInfo(message);
         refreshSearchNav();
+        numStatsPanel.classList.add('hidden');
+      }
+
+      function updateNumStats(hits) {
+        if (!advancedSearchNumStats?.checked) { numStatsPanel.classList.add('hidden'); return; }
+        const values = hits.filter(h => h.kind === 'number').map(h => Number(h.matchText)).filter(v => Number.isFinite(v));
+        if (!values.length) { numStatsPanel.classList.add('hidden'); return; }
+        const n = values.length;
+        const sum = values.reduce((a, b) => a + b, 0);
+        const mean = sum / n;
+        const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+        const stdDev = Math.sqrt(variance);
+        const sorted = [...values].sort((a, b) => a - b);
+        function pct(p) {
+          if (n === 1) return sorted[0];
+          const i = (p / 100) * (n - 1);
+          const lo = Math.floor(i);
+          const hi = Math.ceil(i);
+          return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+        }
+        function fmt(v) {
+          if (Number.isInteger(v)) return String(v);
+          const s = v.toPrecision(6);
+          return String(parseFloat(s));
+        }
+        numStatsPanel.innerHTML = [
+          ['n', String(n)],
+          ['Sum', fmt(sum)],
+          ['Mean', fmt(mean)],
+          ['Std dev', fmt(stdDev)],
+          ['p50 (median)', fmt(pct(50))],
+          ['p95', fmt(pct(95))],
+          ['p99', fmt(pct(99))],
+        ].map(([l, v]) => `<div class="num-stats-row"><span class="num-stats-label">${l}</span><span class="num-stats-val">${v}</span></div>`).join('');
+        numStatsPanel.classList.remove('hidden');
       }
 
       function expandNodeForSearch(node) {
@@ -862,6 +912,8 @@
         labels.push(`path ${pathCfg.label}`);
         lastSearchDescription = labels.join(' + ');
 
+        lastSearchHits = hits;
+        updateNumStats(hits);
         if (!searchResults.length) { setSearchInfo(`Found 0 matches for ${lastSearchDescription}.`); refreshSearchNav(); selectedPath.textContent = 'No matches found.'; return; }
         focusSearchResult(0);
       }
@@ -924,12 +976,10 @@
       advancedSearchPath?.addEventListener('keydown',   (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
       btnSearchPrev?.addEventListener('click', () => focusSearchResult(currentSearchIndex - 1));
       btnSearchNext?.addEventListener('click', () => focusSearchResult(currentSearchIndex + 1));
+      advancedSearchNumStats?.addEventListener('change', () => updateNumStats(lastSearchHits));
       setInputHidden(false);
 
-      function syncJumpTop() { btnJumpTop.classList.toggle('hidden', window.scrollY < 240); }
       btnJumpTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-      window.addEventListener('scroll', syncJumpTop, { passive: true });
-      syncJumpTop();
 
       btnExpand.addEventListener('click', () => {
         if (currentView === 'tree') {
