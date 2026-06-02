@@ -22,12 +22,12 @@
       input[type=number] { width:80px; }
       textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; }
       /* Editor with gutter */
-      .editor-wrap { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input); }
+      .editor-wrap { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input); max-height: 920px; }
       .line-nums { flex-shrink: 0; width: 46px; padding: 10px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; color: var(--muted); text-align: right; overflow: hidden; user-select: none; }
       .ln { display: block; padding: 0 7px 0 4px; }
       .ln-even { background: rgba(128,128,128,0.07); }
       .ln-err { background: rgba(251,113,133,0.22) !important; color: #fb7185 !important; }
-      #input { flex: 1; min-width: 0; min-height: 320px; resize: vertical; border: none; border-radius: 0; background: transparent; line-height: 18px; }
+      #input { flex: 1; min-width: 0; min-height: 320px; max-height: 920px; resize: vertical; border: none; border-radius: 0; background: transparent; line-height: 18px; overflow-y: auto; }
       .json-error-banner { margin-top: 8px; padding: 8px 12px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.35); border-radius: 8px; font-size: 12px; color: #fb7185; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
       .jump-err-btn { background: transparent; border: 1px solid rgba(251,113,133,0.5); color: #fb7185; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; }
       .jump-err-btn:hover { background: rgba(251,113,133,0.15); }

@@ -3,73 +3,6 @@
 
 const THUMB_MAX = 256;
 
-function isHeic(file) {
-  return /\.hei[cf]$/i.test(file.name) ||
-    file.type === 'image/heic' || file.type === 'image/heif';
-}
-
-// heic2any@0.0.4 bundles libheif v1.3 (2019) which does not include HEVC/H.265
-// support in its WASM build — exactly the codec iPhones use. We use libheif-js
-// v1.17.x directly: it ships with libde265 (open-source HEVC decoder) and
-// handles modern iPhone HEIC files correctly.
-let _libheifPromise = null;
-let _libheif        = null;
-
-async function ensureLibheif() {
-  if (_libheif) return _libheif;
-  if (!_libheifPromise) {
-    _libheifPromise = new Promise((resolve, reject) => {
-      // Snapshot current globals so we can detect what the UMD script adds.
-      const snapshot = new Set(Object.keys(window));
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/libheif-js@1.17.1/libheif-wasm/libheif-web.js';
-      s.onload = () => {
-        // libheif-js exposes its API as window.libheif in UMD mode;
-        // fall back to scanning new globals for a HeifDecoder class.
-        const lib = window.libheif ||
-          Object.keys(window)
-            .filter(k => !snapshot.has(k))
-            .map(k => window[k])
-            .find(v => v && typeof v.HeifDecoder === 'function');
-        if (lib) resolve(lib);
-        else reject(new Error('HEIC decoder loaded but HeifDecoder not found.'));
-      };
-      s.onerror = () => reject(new Error(
-        'Could not load the HEIC decoder library. ' +
-        'Check your internet connection, or convert the files to JPEG/PNG first.'
-      ));
-      document.head.appendChild(s);
-    });
-  }
-  _libheif = await _libheifPromise;
-  return _libheif;
-}
-
-async function decodeHeicWithLibheif(file) {
-  const lib = await ensureLibheif();
-  const buf = await file.arrayBuffer();
-  const decoder = new lib.HeifDecoder();
-  const images  = decoder.decode(new Uint8Array(buf));
-  if (!images || images.length === 0) throw new Error('No images found in HEIC file.');
-
-  const img = images[0];
-  const w   = img.get_width();
-  const h   = img.get_height();
-
-  const displayData = await new Promise((resolve, reject) => {
-    img.display(
-      { data: new Uint8ClampedArray(4 * w * h), width: w, height: h },
-      (result) => result ? resolve(result) : reject(new Error('Failed to render HEIC image.'))
-    );
-  });
-
-  const canvas = document.createElement('canvas');
-  canvas.width  = w;
-  canvas.height = h;
-  canvas.getContext('2d').putImageData(new ImageData(displayData.data, w, h), 0, 0);
-  return typeof createImageBitmap !== 'undefined' ? createImageBitmap(canvas) : canvas;
-}
-
 async function loadViaImg(source) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(source);
@@ -81,21 +14,16 @@ async function loadViaImg(source) {
 }
 
 /**
- * Loads any image file (JPEG, PNG, HEIC/HEIF) as an ImageBitmap or HTMLImageElement.
- * Safari decodes HEIC natively; other browsers use libheif-js (lazy, CDN).
+ * Loads a JPEG or PNG file as an ImageBitmap or HTMLImageElement.
  * Exported so the HTML page can reuse it for thumbnail previews.
  */
 export async function loadImageFile(file) {
-  // 1 — Try native decode (works for JPEG/PNG everywhere; HEIC on Safari)
   if (typeof createImageBitmap !== 'undefined') {
     try { return await createImageBitmap(file); } catch (_) {}
   }
   try { return await loadViaImg(file); } catch (_) {
-    if (!isHeic(file)) throw new Error(`Failed to load ${file.name}`);
+    throw new Error(`Failed to load ${file.name}. Use JPEG or PNG files.`);
   }
-
-  // 2 — HEIC on non-Safari: decode via libheif-js (includes HEVC via libde265)
-  return decodeHeicWithLibheif(file);
 }
 
 function bmpSize(bmp) {

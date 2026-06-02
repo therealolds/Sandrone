@@ -113,11 +113,9 @@
       fileB.addEventListener('change', () => readIntoText(fileB, textB));
 
       function delim() { return document.querySelector('input[name="delim"]:checked')?.value || ','; }
-      const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
       const toCsvLine = row => row.map(cell => /[",\n\r;\t]/.test(cell) ? '"' + cell.replace(/"/g,'""') + '"' : cell).join(delim());
 
       btn.addEventListener('click', () => {
-        status.textContent = 'Comparing…';
         status.textContent = 'Comparing...';
         btn.disabled = true;
         missA.textContent = '';
@@ -127,20 +125,15 @@
           const res = compare(textA.value, textB.value, { delimiter: delim(), ignoreHeader: chkHeader.checked, ignoreEmpty: chkEmpty.checked });
           const a = res.missingInFile2 || [];
           const b = res.missingInFile1 || [];
-          summary.innerHTML = `Missing in B: <strong>${a.length}</strong> • Missing in A: <strong>${b.length}</strong>`;
+          summary.textContent = '';
+          summary.append('Missing in B: ');
+          const sA = document.createElement('strong'); sA.textContent = a.length; summary.appendChild(sA);
+          summary.append(' | Missing in A: ');
+          const sB = document.createElement('strong'); sB.textContent = b.length; summary.appendChild(sB);
           const maxShow = 200;
-          const showA = a.slice(0, maxShow).map(toCsvLine).map(esc).join('\n');
-          const showB = b.slice(0, maxShow).map(toCsvLine).map(esc).join('\n');
-          missB.innerHTML = showA + (a.length > maxShow ? `\n…(${a.length - maxShow} more)` : '');
-          missA.innerHTML = showB + (b.length > maxShow ? `\n…(${b.length - maxShow} more)` : '');
-          // Ensure ASCII summary separator
-          summary.innerHTML = `Missing in B: <strong>${a.length}</strong> | Missing in A: <strong>${b.length}</strong>`;
-          // Ensure ASCII summary separator
-          summary.innerHTML = `Missing in B: <strong>${a.length}</strong> | Missing in A: <strong>${b.length}</strong>`;
+          missB.textContent = a.slice(0, maxShow).map(toCsvLine).join('\n') + (a.length > maxShow ? `\n...(${a.length - maxShow} more)` : '');
+          missA.textContent = b.slice(0, maxShow).map(toCsvLine).join('\n') + (b.length > maxShow ? `\n...(${b.length - maxShow} more)` : '');
           status.textContent = 'Done';
-          // Ensure ASCII overflow indicators
-          missB.innerHTML = showA + (a.length > maxShow ? `\n...(${a.length - maxShow} more)` : '');
-          missA.innerHTML = showB + (b.length > maxShow ? `\n...(${b.length - maxShow} more)` : '');
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
