@@ -112,17 +112,27 @@
       }
 
       function render(lines) {
+        res.textContent = '';
         if (!lines || lines.length === 0) {
-          res.innerHTML = '<span class="ok">No differences detected.</span>';
+          const span = document.createElement('span');
+          span.className = 'ok';
+          span.textContent = 'No differences detected.';
+          res.appendChild(span);
           return;
         }
-        // Simple escaping
-        const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-        res.innerHTML = lines.map(line => {
-          if (line.startsWith('+')) return `<span class="add">${esc(line)}</span>`;
-          if (line.startsWith('-')) return `<span class="rem">${esc(line)}</span>`;
-          return esc(line);
-        }).join('\n');
+        const frag = document.createDocumentFragment();
+        lines.forEach((line, i) => {
+          if (i > 0) frag.appendChild(document.createTextNode('\n'));
+          if (line.startsWith('+') || line.startsWith('-')) {
+            const span = document.createElement('span');
+            span.className = line.startsWith('+') ? 'add' : 'rem';
+            span.textContent = line;
+            frag.appendChild(span);
+          } else {
+            frag.appendChild(document.createTextNode(line));
+          }
+        });
+        res.appendChild(frag);
       }
 
       btn.addEventListener('click', async () => {
@@ -137,7 +147,11 @@
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
-          res.innerHTML = `<span class="warn">${(err && err.message) ? err.message : err}</span>`;
+          const errSpan = document.createElement('span');
+          errSpan.className = 'warn';
+          errSpan.textContent = (err && err.message) ? err.message : String(err);
+          res.textContent = '';
+          res.appendChild(errSpan);
         } finally {
           btn.disabled = false;
         }

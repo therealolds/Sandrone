@@ -285,24 +285,27 @@
         return (b / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
-      function escH(s) {
-        return String(s ?? '').replace(/[&<>"']/g,
-          c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-      }
-
-      function methodBadge(m) {
+      function makeMethodBadge(m) {
         const cls = { GET:'m-GET', POST:'m-POST', PUT:'m-PUT', PATCH:'m-PATCH', DELETE:'m-DELETE' }[m] ?? 'm-other';
-        return `<span class="mbadge ${cls}">${escH(m)}</span>`;
+        const span = document.createElement('span');
+        span.className = `mbadge ${cls}`;
+        span.textContent = m;
+        return span;
       }
 
-      function statusBadge(s) {
+      function makeStatusBadge(s) {
         const cls = s >= 500 ? 's-5xx' : s >= 400 ? 's-4xx' : s >= 300 ? 's-3xx' : s >= 200 ? 's-2xx' : 's-oth';
-        return `<span class="sbadge ${cls}">${s}</span>`;
+        const span = document.createElement('span');
+        span.className = `sbadge ${cls}`;
+        span.textContent = s;
+        return span;
       }
 
-      function typeCell(e) {
-        if (e.isJson) return '<span class="type-json">JSON</span>';
-        if (!e.mimeType) return '<span class="type-other">—</span>';
+      function makeTypeCell(e) {
+        const span = document.createElement('span');
+        if (e.isJson) { span.className = 'type-json'; span.textContent = 'JSON'; return span; }
+        span.className = 'type-other';
+        if (!e.mimeType) { span.textContent = '—'; return span; }
         const m = e.mimeType;
         const short = m.includes('html') ? 'HTML'
           : m.includes('javascript') ? 'JS'
@@ -310,54 +313,82 @@
           : m.includes('image') ? 'img'
           : m.includes('text/plain') ? 'text'
           : m.split('/').pop().slice(0, 8);
-        return `<span class="type-other">${escH(short)}</span>`;
+        span.textContent = short;
+        return span;
       }
 
       // ---- Table rendering ----
       function renderTable() {
+        tableBody.textContent = '';
+
         if (!filteredEntries.length) {
-          tableBody.innerHTML = `<tr><td colspan="7" style="padding:20px; text-align:center; color:var(--muted); font-size:13px;">No entries match the current filters.</td></tr>`;
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 7;
+          td.style.cssText = 'padding:20px; text-align:center; color:var(--muted); font-size:13px;';
+          td.textContent = 'No entries match the current filters.';
+          tr.appendChild(td);
+          tableBody.appendChild(tr);
           checkAll.indeterminate = false;
           checkAll.checked = false;
           return;
         }
 
-        const rows = filteredEntries.map(e => {
+        const frag = document.createDocumentFragment();
+        filteredEntries.forEach(e => {
           const isSel  = selectedSet.has(e.idx);
           const isPrev = previewIdx === e.idx;
-          const cls    = (isSel ? 'row-selected ' : '') + (isPrev ? 'row-preview' : '');
-          return `<tr class="${cls.trim()}" data-idx="${e.idx}">
-            <td><input type="checkbox" class="row-cb" data-idx="${e.idx}"${isSel ? ' checked' : ''} /></td>
-            <td>${methodBadge(e.method)}</td>
-            <td>${statusBadge(e.status)}</td>
-            <td class="url-cell" title="${escH(e.url)}">${escH(e.shortUrl || e.url)}</td>
-            <td>${typeCell(e)}</td>
-            <td class="num-cell">${fmtSize(e.size)}</td>
-            <td class="num-cell">${e.time ? e.time + 'ms' : '—'}</td>
-          </tr>`;
-        }).join('');
-        tableBody.innerHTML = rows;
+          const tr = document.createElement('tr');
+          if (isSel)  tr.classList.add('row-selected');
+          if (isPrev) tr.classList.add('row-preview');
+          tr.dataset.idx = e.idx;
 
-        // Row click → preview
-        tableBody.querySelectorAll('tr[data-idx]').forEach(row => {
-          row.addEventListener('click', ev => {
+          const tdCb = document.createElement('td');
+          const cb = document.createElement('input');
+          cb.type = 'checkbox'; cb.className = 'row-cb'; cb.dataset.idx = e.idx; cb.checked = isSel;
+          tdCb.appendChild(cb);
+          tr.appendChild(tdCb);
+
+          const tdMethod = document.createElement('td');
+          tdMethod.appendChild(makeMethodBadge(e.method));
+          tr.appendChild(tdMethod);
+
+          const tdStatus = document.createElement('td');
+          tdStatus.appendChild(makeStatusBadge(e.status));
+          tr.appendChild(tdStatus);
+
+          const tdUrl = document.createElement('td');
+          tdUrl.className = 'url-cell'; tdUrl.title = e.url; tdUrl.textContent = e.shortUrl || e.url;
+          tr.appendChild(tdUrl);
+
+          const tdType = document.createElement('td');
+          tdType.appendChild(makeTypeCell(e));
+          tr.appendChild(tdType);
+
+          const tdSize = document.createElement('td');
+          tdSize.className = 'num-cell'; tdSize.textContent = fmtSize(e.size);
+          tr.appendChild(tdSize);
+
+          const tdTime = document.createElement('td');
+          tdTime.className = 'num-cell'; tdTime.textContent = e.time ? e.time + 'ms' : '—';
+          tr.appendChild(tdTime);
+
+          tr.addEventListener('click', ev => {
             if (ev.target.classList.contains('row-cb')) return;
-            showPreview(parseInt(row.dataset.idx, 10));
+            showPreview(parseInt(tr.dataset.idx, 10));
           });
-        });
-
-        // Checkbox toggle
-        tableBody.querySelectorAll('.row-cb').forEach(cb => {
           cb.addEventListener('change', ev => {
             ev.stopPropagation();
             const idx = parseInt(cb.dataset.idx, 10);
             if (cb.checked) selectedSet.add(idx); else selectedSet.delete(idx);
-            cb.closest('tr').classList.toggle('row-selected', cb.checked);
+            tr.classList.toggle('row-selected', cb.checked);
             syncCheckAll();
             updateActionBar();
           });
-        });
 
+          frag.appendChild(tr);
+        });
+        tableBody.appendChild(frag);
         syncCheckAll();
       }
 
@@ -383,43 +414,75 @@
         const e = allEntries[idx];
         if (!e) return;
 
-        // Update row highlight
         tableBody.querySelectorAll('tr[data-idx]').forEach(r => {
           r.classList.toggle('row-preview', parseInt(r.dataset.idx, 10) === idx);
         });
 
-        const metaItems = [
-          fmtSize(e.size),
-          e.time ? e.time + 'ms' : null,
-          e.mimeType ? `<span class="${e.isJson ? 'type-json' : ''}">${escH(e.mimeType)}</span>` : null,
-          e.startedDateTime ? escH(e.startedDateTime.replace('T', ' ').slice(0, 19) + ' UTC') : null,
-        ].filter(Boolean);
+        previewContent.textContent = '';
 
-        let html = `
-          <div class="preview-header">
-            ${methodBadge(e.method)}
-            <span class="preview-status sbadge ${e.status >= 500 ? 's-5xx' : e.status >= 400 ? 's-4xx' : e.status >= 300 ? 's-3xx' : 's-2xx'}">${e.status} ${escH(e.statusText)}</span>
-          </div>
-          <div class="preview-url">${escH(e.url)}</div>
-          <div class="preview-meta">${metaItems.map(i => `<span>${i}</span>`).join('')}</div>`;
+        const header = document.createElement('div');
+        header.className = 'preview-header';
+        header.appendChild(makeMethodBadge(e.method));
+        const statusSpan = document.createElement('span');
+        const sCls = e.status >= 500 ? 's-5xx' : e.status >= 400 ? 's-4xx' : e.status >= 300 ? 's-3xx' : 's-2xx';
+        statusSpan.className = `preview-status sbadge ${sCls}`;
+        statusSpan.textContent = `${e.status}${e.statusText ? ' ' + e.statusText : ''}`;
+        header.appendChild(statusSpan);
+        previewContent.appendChild(header);
+
+        const urlDiv = document.createElement('div');
+        urlDiv.className = 'preview-url';
+        urlDiv.textContent = e.url;
+        previewContent.appendChild(urlDiv);
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'preview-meta';
+        const addMeta = (text, cls) => {
+          const span = document.createElement('span');
+          if (cls) span.className = cls;
+          span.textContent = text;
+          metaDiv.appendChild(span);
+        };
+        addMeta(fmtSize(e.size));
+        if (e.time) addMeta(e.time + 'ms');
+        if (e.mimeType) addMeta(e.mimeType, e.isJson ? 'type-json' : undefined);
+        if (e.startedDateTime) addMeta(e.startedDateTime.replace('T', ' ').slice(0, 19) + ' UTC');
+        previewContent.appendChild(metaDiv);
 
         if (e.reqBodyText) {
-          html += `<div class="preview-section">Request Body</div>`;
-          html += e.reqBodyJson
-            ? `<div id="req-tree" class="tree preview-tree"></div>`
-            : `<pre class="preview-raw">${escH(e.reqBodyText.slice(0, 3000))}</pre>`;
+          const sec = document.createElement('div');
+          sec.className = 'preview-section'; sec.textContent = 'Request Body';
+          previewContent.appendChild(sec);
+          if (e.reqBodyJson) {
+            const tree = document.createElement('div');
+            tree.id = 'req-tree'; tree.className = 'tree preview-tree';
+            previewContent.appendChild(tree);
+          } else {
+            const pre = document.createElement('pre');
+            pre.className = 'preview-raw'; pre.textContent = e.reqBodyText.slice(0, 3000);
+            previewContent.appendChild(pre);
+          }
         }
 
         if (e.body) {
-          html += `<div class="preview-section">Response Body</div>`;
-          html += e.parsedJson !== null
-            ? `<div id="res-tree" class="tree preview-tree"></div>`
-            : `<pre class="preview-raw">${escH(e.body.slice(0, 3000))}</pre>`;
+          const sec = document.createElement('div');
+          sec.className = 'preview-section'; sec.textContent = 'Response Body';
+          previewContent.appendChild(sec);
+          if (e.parsedJson !== null) {
+            const tree = document.createElement('div');
+            tree.id = 'res-tree'; tree.className = 'tree preview-tree';
+            previewContent.appendChild(tree);
+          } else {
+            const pre = document.createElement('pre');
+            pre.className = 'preview-raw'; pre.textContent = e.body.slice(0, 3000);
+            previewContent.appendChild(pre);
+          }
         } else {
-          html += `<div style="color:var(--muted); font-size:12px; padding:6px 0;">No response body captured.</div>`;
+          const noBody = document.createElement('div');
+          noBody.style.cssText = 'color:var(--muted); font-size:12px; padding:6px 0;';
+          noBody.textContent = 'No response body captured.';
+          previewContent.appendChild(noBody);
         }
-
-        previewContent.innerHTML = html;
 
         if (e.reqBodyJson) {
           const t = document.getElementById('req-tree');
@@ -512,7 +575,11 @@
           filteredEntries = [];
           selectedSet.clear();
           previewIdx = null;
-          previewContent.innerHTML = '<div class="preview-empty">Click a row to preview its response.</div>';
+          previewContent.textContent = '';
+          const emptyMsg = document.createElement('div');
+          emptyMsg.className = 'preview-empty';
+          emptyMsg.textContent = 'Click a row to preview its response.';
+          previewContent.appendChild(emptyMsg);
 
           dropZoneCard.classList.add('hidden');
           controlsRow.classList.remove('hidden');

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\" -type f \\\\\\( -name \"*.html\" -o -name \"*.js\" -o -name \"*.py\" -o -name \"*.java\" -o -name \"*.go\" -o -name \"*.rs\" -o -name \"*.cs\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.tsx\" \\\\\\))",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\\\\\\\\PavironicaJS\" -name \"*.js\" -type f)",
+      "Bash(grep -r \"SQL\\\\|INSERT\\\\|UPDATE\\\\|DELETE\" \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\\\\\\\\PavironicaJS\" -i)",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\" -name \".env*\" -o -name \"*.env\" -o -name \"*secret*\" -o -name \"*config*\")",
+      "Bash(ls -la \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\")",
+      "Bash(ls \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\\\\\\\\PavironicaHTML\")",
+      "Bash(grep -r \"sessionStorage\\\\|localStorage\" \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\\\\\\\\PavironicaHTML\" --include=\"*.html\")",
+      "Bash(grep -r \"window.location\\\\|document.location\\\\|location.href\" \"C:\\\\\\\\Users\\\\\\\\marco\\\\\\\\Sandrone\" --include=\"*.html\" --include=\"*.js\")"
+    ]
+  }
+}
