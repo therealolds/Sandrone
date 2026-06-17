@@ -158,10 +158,11 @@
       </ul>
 
       <h3>Side panel</h3>
-      <p>The sticky panel to the right of the tree has three sections:</p>
+      <p>The sticky panel to the right of the tree has four sections:</p>
       <ul>
         <li><strong>Selected path</strong> — shows the full path of the last clicked node, and during a search, the current match's path, match index, type, and value.</li>
         <li><strong>Advanced search</strong> — described in detail below.</li>
+        <li><strong>Utilities</strong> — helper tools for extracting data from the JSON (see below).</li>
         <li><strong>View tools</strong> — font size control and a Jump to the top button (see below).</li>
       </ul>
 
@@ -196,6 +197,21 @@
         </tbody>
       </table>
       <p>If <strong>Limit search path</strong> is set, statistics are scoped to the filtered results only. Toggling the checkbox updates the panel immediately without re-running the search.</p>
+
+      <h3>Utilities — Key value extractor</h3>
+      <p>Enter a key name and click <code>Extract</code> (or press <kbd>Enter</kbd>) to collect every value stored under that key anywhere in the JSON. The results appear in a box below the button, one value per line.</p>
+      <p>Example — given this JSON and the key <code>firstName</code>:</p>
+      <ul>
+        <li>Output: <code>"John"</code> / <code>"Anna"</code> / <code>"Peter"</code></li>
+      </ul>
+      <table class="opts">
+        <thead><tr><th>Field</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Key</strong></td><td>The exact key name to search for. The extractor recurses the full tree and collects every value associated with a matching key, at any depth.</td></tr>
+          <tr><td><strong>Limit search path</strong></td><td>Restricts the extraction to a subtree. Paste a path from the Selected path panel (e.g. <code>root&gt;employees&gt;</code>) to narrow the scope.</td></tr>
+        </tbody>
+      </table>
+      <p>String values are shown quoted (<code>"John"</code>), numbers and booleans are shown as-is, objects and arrays are shown as compact JSON. The output box only appears after the first extraction.</p>
 
       <h3>Graph view</h3>
       <p>Renders the JSON structure as a node graph (SVG). Click any box to expand or collapse its children. Drag to pan. Use <code>Expand All</code> / <code>Collapse All</code> from the toolbar.</p>

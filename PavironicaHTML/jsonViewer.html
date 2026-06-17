@@ -132,6 +132,9 @@
       /* Active-slot indicator in side pane */
       .active-slot-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; opacity: 0.85; }
 
+      .utilities-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .key-extractor-output { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; color: var(--text); }
+
       @media (max-width: 980px) {
         .interactive-split { grid-template-columns: 1fr; }
       }
@@ -240,6 +243,21 @@
                 <button id="btn-search-prev" class="btn" disabled>Previous</button>
                 <button id="btn-search-next" class="btn" disabled>Next</button>
               </div>
+            </div>
+            <div class="utilities-pane">
+              <div class="muted">Utilities</div>
+              <div class="search-field">
+                <label for="key-extractor-key">Key value extractor</label>
+                <input id="key-extractor-key" type="text" placeholder="Key name to extract values for" />
+              </div>
+              <div class="search-field">
+                <label for="key-extractor-path">Limit search path</label>
+                <input id="key-extractor-path" type="text" placeholder="A path from above to narrow the search" />
+              </div>
+              <div class="search-row">
+                <button id="btn-key-extractor" class="btn">Extract</button>
+              </div>
+              <div id="key-extractor-output" class="key-extractor-output hidden"></div>
             </div>
             <div class="tools-pane">
               <div class="muted">View tools</div>
@@ -1225,6 +1243,65 @@
 
       document.getElementById('btn-font-minus').addEventListener('click', () => applyTreeFontSize(treeFontSize - FONT_STEP));
       document.getElementById('btn-font-plus').addEventListener('click',  () => applyTreeFontSize(treeFontSize + FONT_STEP));
+
+      // ---- Utilities: Key value extractor ----
+      const keyExtractorKey    = document.getElementById('key-extractor-key');
+      const keyExtractorPath   = document.getElementById('key-extractor-path');
+      const btnKeyExtractor    = document.getElementById('btn-key-extractor');
+      const keyExtractorOutput = document.getElementById('key-extractor-output');
+
+      function collectValuesByKey(value, targetKey, out = []) {
+        if (Array.isArray(value)) {
+          value.forEach(item => collectValuesByKey(item, targetKey, out));
+        } else if (value && typeof value === 'object') {
+          Object.keys(value).forEach(k => {
+            if (k === targetKey) out.push(value[k]);
+            collectValuesByKey(value[k], targetKey, out);
+          });
+        }
+        return out;
+      }
+
+      function formatExtractedValue(v) {
+        if (v === null) return 'null';
+        if (typeof v === 'string') return `"${v}"`;
+        if (typeof v === 'object') return JSON.stringify(v);
+        return String(v);
+      }
+
+      function runKeyExtractor() {
+        const targetKey = String(keyExtractorKey?.value ?? '').trim();
+        if (!targetKey) {
+          keyExtractorOutput.textContent = 'Enter a key name.';
+          keyExtractorOutput.classList.remove('hidden');
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(getSlotData(activeSlot));
+        } catch (e) {
+          keyExtractorOutput.textContent = 'Invalid JSON. Fix it first.';
+          keyExtractorOutput.classList.remove('hidden');
+          return;
+        }
+        const limitRaw = String(keyExtractorPath?.value ?? '').trim();
+        const pathCfg  = parseSearchLimitPath(limitRaw);
+        const resolved = resolvePathTarget(parsed, pathCfg.segments);
+        if (!resolved.ok) {
+          keyExtractorOutput.textContent = `Invalid limit path: ${resolved.message}`;
+          keyExtractorOutput.classList.remove('hidden');
+          return;
+        }
+        const values = collectValuesByKey(resolved.value, targetKey);
+        keyExtractorOutput.textContent = values.length
+          ? values.map(formatExtractedValue).join('\n')
+          : `No values found for key "${targetKey}".`;
+        keyExtractorOutput.classList.remove('hidden');
+      }
+
+      btnKeyExtractor?.addEventListener('click', runKeyExtractor);
+      keyExtractorKey?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runKeyExtractor(); } });
+      keyExtractorPath?.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runKeyExtractor(); } });
     </script>
   </body>
 </html>
