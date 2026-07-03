@@ -8,48 +8,79 @@
     <link rel="stylesheet" href="../assets/css/style.css" />
     <style>
       * { box-sizing: border-box; }
-      body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
-      header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-      header a { color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; }
-      header a:hover { border-color: var(--accent); color: var(--text); }
-      header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
-      main { padding: 20px; max-width: clamp(1100px, 95vw, 1800px); margin: 0 auto; display: grid; gap: 16px; }
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-width: 0; }
-      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; display: flex; flex-direction: column; overflow: hidden; }
       label { font-size: 12px; color: var(--muted); }
-      input[type="file"] { width: 100%; }
-      input[type=number], input[type=text] { background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px; }
-      input[type=number] { width:80px; }
-      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; }
-      /* Editor with gutter */
-      .editor-wrap { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input); max-height: 920px; }
+      input[type=number], input[type=text] { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+      input[type=number] { width: 64px; }
+      select { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-family: inherit; font-size: 12px; cursor: pointer; }
+      .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 7px 13px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; }
+      .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+      .muted { color: var(--muted); }
+      .hidden { display: none !important; }
+
+      /* ---- Toolbar (single row) ---- */
+      .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+      .toolbar a.back { color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+      .toolbar a.back:hover { border-color: var(--accent); color: var(--text); }
+      .toolbar h1 { margin: 0; font-size: 16px; letter-spacing: 0.2px; }
+      .toolbar-group { display: flex; align-items: center; gap: 8px; }
+      .toolbar-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+      .file-btn { display: inline-flex; align-items: center; }
+      #status { font-size: 12px; }
+      .local-note { font-size: 11px; margin-left: auto; }
+      @media (max-width: 1350px) { .local-note { display: none; } }
+
+      /* Slot chips */
+      .slot-chip { background: var(--input); color: var(--muted); border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; }
+      .slot-chip.slot-chip-active { border-color: var(--accent); color: var(--accent); background: rgba(34, 211, 238, 0.1); }
+      .slot-chip:hover { border-color: var(--accent-2); color: var(--text); }
+
+      /* ---- Workspace: editor | tree | rail ---- */
+      .workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: clamp(300px, 28vw, 520px) minmax(0, 1fr) 340px; }
+      .pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+      /* Editor pane */
+      .editor-pane { border-right: 1px solid var(--border); }
+      .pane-header { display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+      .pane-header .pane-meta { font-weight: 400; text-transform: none; letter-spacing: 0; }
+      .pane-btn { margin-left: auto; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 11px; }
+      .pane-btn:hover { border-color: var(--accent); color: var(--text); }
+      .editor-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+      .editor-wrap { flex: 1; min-height: 0; display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input); }
       .line-nums { flex-shrink: 0; width: 46px; padding: 10px 0; background: rgba(0,0,0,0.18); border-right: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; color: var(--muted); text-align: right; overflow: hidden; user-select: none; }
       .ln { display: block; padding: 0 7px 0 4px; }
       .ln-even { background: rgba(128,128,128,0.07); }
       .ln-err { background: rgba(251,113,133,0.22) !important; color: #fb7185 !important; }
-      #input { flex: 1; min-width: 0; min-height: 320px; max-height: 920px; resize: vertical; border: none; border-radius: 0; background: transparent; line-height: 18px; overflow-y: auto; }
-      .json-error-banner { margin-top: 8px; padding: 8px 12px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.35); border-radius: 8px; font-size: 12px; color: #fb7185; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      #input { flex: 1; min-width: 0; height: 100%; resize: none; border: none; background: transparent; color: var(--text); padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 18px; overflow: auto; }
+      #input:focus { outline: none; }
+      .json-error-banner { flex-shrink: 0; padding: 8px 12px; background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.35); border-radius: 8px; font-size: 12px; color: #fb7185; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
       .jump-err-btn { background: transparent; border: 1px solid rgba(251,113,133,0.5); color: #fb7185; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap; }
       .jump-err-btn:hover { background: rgba(251,113,133,0.15); }
-      pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
-      .result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
-      .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
-      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-      .muted { color: var(--muted); }
-      .ok { color: #34d399; }
-      .warn { color: #fbbf24; }
-      .tools-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .font-size-controls { display: flex; gap: 6px; align-items: center; }
-      .font-size-controls .btn { padding: 4px 10px; font-size: 15px; line-height: 1; }
-      #graph-wrap { cursor: grab; min-width: 0; }
-      #graph-wrap.panning { cursor: grabbing; }
-      .hidden { display: none; }
+
+      /* Collapsed editor: thin vertical strip */
+      .editor-strip { display: none; }
+      .editor-collapsed .editor-pane .pane-header, .editor-collapsed .editor-body { display: none; }
+      .workspace.editor-collapsed { grid-template-columns: 38px minmax(0, 1fr) 340px; }
+      .editor-collapsed .editor-strip { display: flex; flex: 1; align-items: flex-start; justify-content: center; padding: 12px 0; background: transparent; border: none; cursor: pointer; color: var(--muted); }
+      .editor-strip span { writing-mode: vertical-rl; font-size: 11px; letter-spacing: 0.5px; white-space: nowrap; }
+      .editor-strip:hover { color: var(--accent); background: rgba(34,211,238,0.05); }
+
+      /* Tree pane */
+      .tree-pane { overflow: auto; padding: 12px; }
+      #tree-columns { display: flex; gap: 14px; align-items: flex-start; }
+      .tree-column { flex: 1 1 0; min-width: 280px; }
+      .tree-column-header { font-size: 11px; font-weight: 600; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 8px; letter-spacing: 0.2px; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+      .tree-empty { color: var(--muted); font-size: 13px; padding: 48px 24px; text-align: center; line-height: 1.8; }
+      kbd { background: var(--input); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 11px; font-family: ui-monospace, monospace; }
 
       /* Tree view styles */
       .tree { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: var(--tree-font-size, 12px); }
       .node { line-height: 1.4; }
       .line { display: flex; align-items: center; gap: 6px; }
-      .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; }
+      .toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; background: var(--input); color: var(--text); cursor: pointer; user-select: none; flex-shrink: 0; }
       .toggle:hover { border-color: var(--accent); }
       .key { color: #93c5fd; }
       .punct { color: #9ca3af; }
@@ -59,43 +90,31 @@
       .children { margin-left: 18px; border-left: 1px dashed var(--guide); padding-left: 8px; }
       .summary { color: var(--muted); }
       .collapsed > .children { display: none; }
+      .line.path-selected { outline: 1px solid var(--accent); border-radius: 4px; background: rgba(34, 211, 238, 0.12); }
 
-      /* Table view styles */
-      .table-view { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
-      .table-node { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 8px; }
-      .table-summary { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); }
-      .table-summary::-webkit-details-marker { color: var(--muted); }
-      .table-tag { padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
-      .table-attr { padding: 2px 6px; border-radius: 6px; background: var(--card); border: 1px solid var(--border); color: var(--muted); font-size: 11px; }
-      .table-body { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
-      .table-grid { width: 100%; border-collapse: collapse; }
-      .table-grid td { border: 1px solid var(--border); padding: 4px 6px; }
-      .table-key { width: 180px; font-weight: 700; background: var(--card); }
-      .table-val { word-break: break-word; }
-      .table-text { padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); }
-      .table-children { display: flex; flex-direction: column; gap: 8px; }
-
-      /* Interactive split layout */
-      .interactive-split { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: start; }
-      .interactive-pane { min-width: 0; }
-      .side-pane { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow: auto; display: flex; flex-direction: column; gap: 12px; }
-      .path-pane { min-height: 160px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; }
-      .search-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .search-row { display: flex; gap: 8px; }
-      .search-row input { flex: 1 1 auto; min-width: 0; }
+      /* ---- Tools rail ---- */
+      .rail { border-left: 1px solid var(--border); overflow-y: auto; }
+      .rail-section { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+      .rail-title { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; color: var(--muted); }
+      .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); min-height: 60px; }
       .search-field { display: flex; flex-direction: column; gap: 4px; }
+      .search-field input { min-width: 0; }
       .search-flags { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      .search-row { display: flex; gap: 8px; }
+      .search-row .btn, .search-row .btn-ghost { flex: 1 1 0; }
       .search-nav { display: flex; gap: 8px; }
       .search-nav .btn { flex: 1 1 0; }
       .num-stats { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
-      .num-stats.hidden { display: none; }
       .num-stats-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
       .num-stats-label { color: var(--muted); }
       .num-stats-val { color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-      .path-output { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color: var(--text); }
-      .line.path-selected { outline: 1px solid var(--accent); border-radius: 4px; background: rgba(34, 211, 238, 0.12); }
+      .active-slot-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; opacity: 0.85; text-transform: none; letter-spacing: 0; }
+      .key-extractor-output { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; color: var(--text); }
+      .extract-opts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .font-size-controls { display: flex; gap: 6px; align-items: center; }
+      .font-size-controls .btn { padding: 4px 10px; font-size: 15px; line-height: 1; }
 
-      /* Comparator modal */
+      /* ---- Comparator modal ---- */
       .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }
       .modal-overlay.hidden { display: none; }
       .modal { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: min(700px, 100%); max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
@@ -114,180 +133,167 @@
       .source-extra textarea { width: 100%; height: 110px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11px; }
       .modal-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 4px; border-top: 1px solid var(--border); }
       .modal-footer .modal-error { flex: 1; font-size: 12px; color: #fbbf24; }
-      .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 14px; }
-      .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
       @media (max-width: 560px) { .modal-cols { grid-template-columns: 1fr; } }
 
-      /* Multi-column tree layout */
-      #tree-columns { display: flex; gap: 12px; align-items: start; overflow-x: auto; }
-      .tree-column { flex: 1 1 0; min-width: 260px; }
-      .tree-column-header { font-size: 11px; font-weight: 600; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 8px; letter-spacing: 0.2px; }
-
-      /* Slot selector buttons */
-      .slot-btn { background: var(--input); color: var(--muted); border: 1px solid var(--border); padding: 3px 9px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: inherit; }
-      .slot-btn.slot-btn-active { border-color: var(--accent); color: var(--accent); background: rgba(34, 211, 238, 0.1); }
-      .slot-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .slot-btn:not(:disabled):hover { border-color: var(--accent-2); color: var(--text); }
-
-      /* Active-slot indicator in side pane */
-      .active-slot-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; opacity: 0.85; }
-
-      .utilities-pane { border: 1px solid var(--border); border-radius: 8px; background: var(--input); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .key-extractor-output { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; color: var(--text); }
-
+      /* ---- Narrow screens: stack panes, page scrolls ---- */
       @media (max-width: 980px) {
-        .interactive-split { grid-template-columns: 1fr; }
+        body { overflow: auto; height: auto; }
+        .workspace, .workspace.editor-collapsed { display: flex; flex-direction: column; height: auto; }
+        .editor-pane { border-right: none; border-bottom: 1px solid var(--border); }
+        .editor-body { height: 300px; }
+        .editor-collapsed .editor-strip { display: none; }
+        .editor-collapsed .editor-pane .pane-header { display: flex; }
+        .editor-collapsed .editor-body { display: flex; }
+        .rail { border-left: none; border-top: 1px solid var(--border); }
+        #btn-editor-collapse { display: none; }
       }
     </style>
   </head>
   <body>
-    <header>
-      <a href="../index.html"><- Back</a>
+    <header class="toolbar">
+      <a class="back" href="../index.html"><- Back</a>
       <h1>JSON Viewer</h1>
-      <span class="muted">Local-only - No data leaves your browser</span>
-    </header>
-    <main>
-      <div class="card controls">
+      <span class="toolbar-sep"></span>
+      <div class="toolbar-group">
+        <label class="file-btn btn-ghost" title="Load a JSON file into the editor">Open file<input id="file" type="file" accept="application/json,.json,.txt" hidden /></label>
         <label>Indent <input id="indent" type="number" min="0" max="10" value="2" /></label>
-        <label>JSON file <input id="file" type="file" accept="application/json,.json,.txt" /></label>
-        <button id="btn-format" class="btn">Format</button>
-        <button id="btn-toggle-input" class="btn" title="Hide or show the JSON input area">Hide Input</button>
-        <button id="btn-tree-view" class="btn" title="Show interactive tree">Interactive view</button>
-        <!--<button id="btn-table-view" class="btn" title="Show table view">Table view</button>-->
-        <button id="btn-graph-view" class="btn" title="Show graph">Graph view</button>
-        <button id="btn-expand" class="btn" title="Expand all (tree view)">Expand All</button>
-        <button id="btn-collapse" class="btn" title="Collapse all (tree view)">Collapse All</button>
-        <button id="btn-open-comparator" class="btn" title="Send two JSONs to the JSON Comparator in a new tab">→ JSON Comparator</button>
-        <span id="status" class="muted"></span>
+        <button id="btn-format" class="btn" title="Pretty-print the editor content">Format</button>
       </div>
-
-      <!-- Ephemeral memory slots (lost on page leave) -->
-      <div class="card controls">
-        <label class="muted">Memory (click = load, Shift/Ctrl/Alt+click = save, right-click = rename)</label>
-        <button id="mem-1" class="btn" title="Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.">M1</button>
-        <button id="mem-2" class="btn" title="Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.">M2</button>
-        <button id="mem-3" class="btn" title="Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.">M3</button>
+      <span class="toolbar-sep"></span>
+      <div class="toolbar-group" title="Memory slots. Click: show/hide as tree column. Shift/Ctrl+Click: save editor content. Double-click: load into editor. Right-click: rename.">
+        <button class="slot-chip slot-chip-active" data-slot="input">Input</button>
+        <button class="slot-chip" data-slot="m1">M1</button>
+        <button class="slot-chip" data-slot="m2">M2</button>
+        <button class="slot-chip" data-slot="m3">M3</button>
       </div>
+      <span class="toolbar-sep"></span>
+      <button id="btn-open-comparator" class="btn-ghost" title="Send two JSONs to the JSON Comparator in a new tab">→ Comparator</button>
+      <span id="status" class="muted"></span>
+      <span class="local-note muted">Local-only - No data leaves your browser</span>
+    </header>
 
-      <div id="input-card" class="card">
-        <label>JSON (paste or choose a file)</label>
-        <div class="editor-wrap">
-          <div id="line-nums" class="line-nums" aria-hidden="true"></div>
-          <textarea id="input" placeholder="Paste JSON or load a file..."></textarea>
+    <div id="workspace" class="workspace">
+
+      <!-- Editor pane -->
+      <section class="pane editor-pane">
+        <div class="pane-header">
+          <span>Editor</span>
+          <span id="editor-meta" class="pane-meta muted"></span>
+          <button id="btn-editor-collapse" class="pane-btn" title="Collapse editor">◀ collapse</button>
         </div>
-        <div id="json-error-banner" class="json-error-banner hidden"></div>
-      </div>
+        <div class="editor-body">
+          <div class="editor-wrap">
+            <div id="line-nums" class="line-nums" aria-hidden="true"></div>
+            <textarea id="input" spellcheck="false" placeholder="Paste JSON here — or press Ctrl+V anywhere on the page, or drop a .json file."></textarea>
+          </div>
+          <div id="json-error-banner" class="json-error-banner hidden"></div>
+        </div>
+        <button id="editor-strip" class="editor-strip" title="Expand editor"><span id="editor-strip-label">Editor ▶</span></button>
+      </section>
 
-      <div id="tree-card" class="card result hidden">
-        <!-- Header row: title + slot selector -->
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
-          <div class="muted">Interactive View</div>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <span class="muted" style="font-size:11px;">Visible:</span>
-            <button id="slot-btn-input" class="slot-btn slot-btn-active" data-slot="input" title="Toggle: show input textarea">Input</button>
-            <button id="slot-btn-m1"    class="slot-btn"                  data-slot="m1"    disabled title="Toggle: show M1">M1</button>
-            <button id="slot-btn-m2"    class="slot-btn"                  data-slot="m2"    disabled title="Toggle: show M2">M2</button>
-            <button id="slot-btn-m3"    class="slot-btn"                  data-slot="m3"    disabled title="Toggle: show M3">M3</button>
+      <!-- Tree pane -->
+      <section class="pane tree-pane">
+        <div id="tree-columns"></div>
+      </section>
+
+      <!-- Tools rail -->
+      <aside class="pane rail">
+        <div class="rail-section">
+          <div class="rail-title">Selected path<span id="path-slot-label"></span></div>
+          <pre id="selected-path" class="path-output">Click a line in the tree to see its path.</pre>
+        </div>
+
+        <div class="rail-section">
+          <div class="rail-title">Advanced search<span id="active-slot-label"></span></div>
+          <div class="search-field">
+            <label for="advanced-search-query">Text search</label>
+            <input id="advanced-search-query" type="text" placeholder="Word, phrase, or key: value" />
+          </div>
+          <div class="search-flags">
+            <label><input id="advanced-search-case-sensitive" type="checkbox" /> Case sensitive</label>
+            <label><input id="advanced-search-wildcard" type="checkbox" /> % for wildcard</label>
+          </div>
+          <div class="search-field">
+            <label for="advanced-search-path">Limit search path</label>
+            <input id="advanced-search-path" type="text" placeholder="A path from above to narrow the search" />
+          </div>
+          <div class="search-field">
+            <label>Number search</label>
+            <div class="search-row" style="flex-wrap:wrap; align-items:center;">
+              <input id="advanced-search-num-key" type="text" placeholder="Key (optional)" style="flex:1 1 70px; min-width:60px;" />
+              <select id="advanced-search-num-op" style="flex-shrink:0;">
+                <option value="eq">= equal</option>
+                <option value="ne">≠ different</option>
+                <option value="gt">&gt; greater</option>
+                <option value="lt">&lt; lower</option>
+              </select>
+              <input id="advanced-search-num-val" type="text" placeholder="Number" style="flex:1 1 70px; min-width:60px;" />
+            </div>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:4px;">
+              <label><input id="advanced-search-num-round" type="checkbox" /> Round (match rounded value)</label>
+              <label><input id="advanced-search-num-stats" type="checkbox" /> Show statistics</label>
+            </div>
+            <div id="num-stats-panel" class="num-stats hidden"></div>
+          </div>
+          <div class="search-row">
+            <button id="btn-advanced-search" class="btn">Search</button>
+          </div>
+          <div id="advanced-search-info" class="muted" style="font-size:12px;">No active search.</div>
+          <div class="search-nav">
+            <button id="btn-search-prev" class="btn" disabled>Previous</button>
+            <button id="btn-search-next" class="btn" disabled>Next</button>
           </div>
         </div>
 
-        <div class="interactive-split">
-          <!-- Column area -->
-          <div id="tree-columns" class="interactive-pane"></div>
+        <div class="rail-section">
+          <div class="rail-title">Key value extractor</div>
+          <div class="search-field">
+            <label for="key-extractor-key">Key name</label>
+            <input id="key-extractor-key" type="text" placeholder="Key name to extract values for" />
+          </div>
+          <div class="search-field">
+            <label for="key-extractor-path">Limit search path</label>
+            <input id="key-extractor-path" type="text" placeholder="A path from above to narrow the search" />
+          </div>
+          <div class="extract-opts">
+            <label>Quote
+              <select id="key-extractor-quote">
+                <option value="'">' single</option>
+                <option value="&quot;">" double</option>
+                <option value="">none</option>
+              </select>
+            </label>
+            <label>Separator
+              <select id="key-extractor-sep">
+                <option value="comma-newline">, + newline</option>
+                <option value="newline">newline</option>
+                <option value="comma-inline">, inline</option>
+              </select>
+            </label>
+            <label title="Wrap the whole list in parentheses"><input id="key-extractor-parens" type="checkbox" /> ( )</label>
+          </div>
+          <div class="search-row">
+            <button id="btn-key-extractor" class="btn">Extract</button>
+            <button id="btn-key-extractor-copy" class="btn-ghost" disabled>Copy</button>
+          </div>
+          <div id="key-extractor-output" class="key-extractor-output hidden"></div>
+        </div>
 
-          <!-- Side pane: path + search -->
-          <div class="side-pane">
-            <div class="path-pane">
-              <div class="muted" style="margin-bottom:8px;">
-                Selected path<span id="path-slot-label"></span>
-              </div>
-              <pre id="selected-path" class="path-output">Click a line on the left to see its path.</pre>
-            </div>
-            <div class="search-pane">
-              <div class="muted">Advanced search<span id="active-slot-label"></span></div>
-              <div class="search-field">
-                <label for="advanced-search-query">Text search</label>
-                <input id="advanced-search-query" type="text" placeholder="Word, phrase, number" />
-              </div>
-              <div class="search-flags">
-                <label><input id="advanced-search-case-sensitive" type="checkbox" /> Case sensitive</label>
-                <label><input id="advanced-search-wildcard" type="checkbox" /> % for wildcard</label>
-              </div>
-              <div class="search-field">
-                <label for="advanced-search-path">Limit search path</label>
-                <input id="advanced-search-path" type="text" placeholder="A path from above to narrow the search" />
-              </div>
-              <div class="search-field">
-                <label>Number search</label>
-                <div class="search-row" style="flex-wrap:wrap; align-items:center;">
-                  <input id="advanced-search-num-key" type="text" placeholder="Key (optional)" style="flex:1 1 70px; min-width:60px;" />
-                  <select id="advanced-search-num-op" style="background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;flex-shrink:0;">
-                    <option value="eq">= equal</option>
-                    <option value="ne">≠ different</option>
-                    <option value="gt">&gt; greater</option>
-                    <option value="lt">&lt; lower</option>
-                  </select>
-                  <input id="advanced-search-num-val" type="text" placeholder="Number" style="flex:1 1 70px; min-width:60px;" />
-                </div>
-                <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:4px;">
-                  <label><input id="advanced-search-num-round" type="checkbox" /> Round (match rounded value)</label>
-                  <label><input id="advanced-search-num-stats" type="checkbox" /> Show statistics</label>
-                </div>
-                <div id="num-stats-panel" class="num-stats hidden"></div>
-              </div>
-              <div class="search-row">
-                <button id="btn-advanced-search" class="btn">Search</button>
-              </div>
-              <div id="advanced-search-info" class="muted">No active search.</div>
-              <div class="search-nav">
-                <button id="btn-search-prev" class="btn" disabled>Previous</button>
-                <button id="btn-search-next" class="btn" disabled>Next</button>
-              </div>
-            </div>
-            <div class="utilities-pane">
-              <div class="muted">Utilities</div>
-              <div class="search-field">
-                <label for="key-extractor-key">Key value extractor</label>
-                <input id="key-extractor-key" type="text" placeholder="Key name to extract values for" />
-              </div>
-              <div class="search-field">
-                <label for="key-extractor-path">Limit search path</label>
-                <input id="key-extractor-path" type="text" placeholder="A path from above to narrow the search" />
-              </div>
-              <div class="search-row">
-                <button id="btn-key-extractor" class="btn">Extract</button>
-              </div>
-              <div id="key-extractor-output" class="key-extractor-output hidden"></div>
-            </div>
-            <div class="tools-pane">
-              <div class="muted">View tools</div>
-              <div class="font-size-controls" aria-label="Tree font size">
-                <span title="Tree font size">🔍</span>
-                <button id="btn-font-minus" class="btn" title="Decrease font size">−</button>
-                <span id="font-size-label" style="font-size:11px; color:var(--muted); min-width:28px; text-align:center;">12px</span>
-                <button id="btn-font-plus" class="btn" title="Increase font size">+</button>
-              </div>
-              <button id="btn-jump-top" class="btn" aria-label="Jump to the top">Jump to the top</button>
-            </div>
+        <div class="rail-section">
+          <div class="rail-title">View</div>
+          <div class="font-size-controls" aria-label="Tree font size">
+            <span title="Tree font size">Font</span>
+            <button id="btn-font-minus" class="btn" title="Decrease font size">−</button>
+            <span id="font-size-label" style="font-size:11px; color:var(--muted); min-width:28px; text-align:center;">12px</span>
+            <button id="btn-font-plus" class="btn" title="Increase font size">+</button>
+          </div>
+          <div class="muted" style="font-size:11px; line-height:1.6;">
+            Tip: <kbd>Alt</kbd>+click a <kbd>+</kbd> toggle to expand that whole subtree.
           </div>
         </div>
-      </div>
+      </aside>
+    </div>
 
-      <div id="table-card" class="card result hidden">
-        <div class="muted" style="margin-bottom:8px;">Table View</div>
-        <div id="table-view" class="table-view"></div>
-      </div>
-
-      <div id="graph-card" class="card hidden">
-        <div class="muted" style="margin-bottom:8px;">Graph View</div>
-        <div id="graph-wrap" style="height:520px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:
-          linear-gradient(0deg, rgba(255,255,255,0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 20px 20px; background-position: -1px -1px;">
-          <svg id="graph" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
-        </div>
-      </div>
-    </main>
     <!-- JSON Comparator modal -->
     <div id="comparator-modal" class="modal-overlay hidden">
       <div class="modal">
@@ -315,33 +321,20 @@
       </div>
     </div>
 
-
     <script type="module">
-      import { formatJson, renderTree, expandAll, collapseAll, renderGraph, renderJsonTable, setTableViewOpen, fitToContent, enablePanScroll } from "../PavironicaJS/jsonViewer.js";
+      import { formatJson, renderTree, collapseAll } from "../PavironicaJS/jsonViewer.js";
 
       const file              = document.getElementById('file');
       const input             = document.getElementById('input');
-      const btn               = document.getElementById('btn-format');
+      const btnFormat         = document.getElementById('btn-format');
       const indent            = document.getElementById('indent');
       const status            = document.getElementById('status');
+      const workspace         = document.getElementById('workspace');
       const treeColumns       = document.getElementById('tree-columns');
-      const treeCard          = document.getElementById('tree-card');
-      const graphSvg          = document.getElementById('graph');
-      const graphWrap         = document.getElementById('graph-wrap');
-      const graphCard         = document.getElementById('graph-card');
-      const btnTreeView       = document.getElementById('btn-tree-view');
-      const btnGraphView      = document.getElementById('btn-graph-view');
-      const btnExpand         = document.getElementById('btn-expand');
-      const btnCollapse       = document.getElementById('btn-collapse');
-      const memBtn1           = document.getElementById('mem-1');
-      const memBtn2           = document.getElementById('mem-2');
-      const memBtn3           = document.getElementById('mem-3');
-      const btnTableView      = document.getElementById('btn-table-view');
-      const tableCard         = document.getElementById('table-card');
-      const tableView         = document.getElementById('table-view');
-      const btnToggleInput    = document.getElementById('btn-toggle-input');
-      const inputCard         = document.getElementById('input-card');
-      const btnJumpTop        = document.getElementById('btn-jump-top');
+      const editorMeta        = document.getElementById('editor-meta');
+      const btnEditorCollapse = document.getElementById('btn-editor-collapse');
+      const editorStrip       = document.getElementById('editor-strip');
+      const editorStripLabel  = document.getElementById('editor-strip-label');
       const selectedPath      = document.getElementById('selected-path');
       const pathSlotLabel     = document.getElementById('path-slot-label');
       const activeSlotLabel   = document.getElementById('active-slot-label');
@@ -374,9 +367,18 @@
         lineNums.innerHTML = parts.join('');
       }
 
+      function updateEditorMeta() {
+        const text = input.value;
+        const lines = text ? text.split('\n').length : 0;
+        const err = currentErrorLine > 0 ? ' · ⚠ invalid' : '';
+        editorMeta.textContent = text.trim() ? `${lines} lines${err}` : '';
+        editorStripLabel.textContent = text.trim() ? `Editor ▶ · ${lines} lines${err}` : 'Editor ▶';
+      }
+
       function refreshLineNums() {
         buildLineNums(input.value.split('\n').length, currentErrorLine);
         lineNums.scrollTop = input.scrollTop;
+        updateEditorMeta();
       }
 
       function escHtml(s) {
@@ -404,6 +406,7 @@
         let pos = 0;
         for (let i = 0; i < line - 1 && i < lines.length; i++) pos += lines[i].length + 1;
         pos += Math.max(0, col - 1);
+        setEditorCollapsed(false);
         input.setSelectionRange(pos, pos);
         input.focus();
         input.scrollTop = Math.max(0, (line - 1) * 18 - 60);
@@ -415,12 +418,11 @@
         currentErrorLine = line;
         buildLineNums(jsonText.split('\n').length, currentErrorLine);
         lineNums.scrollTop = input.scrollTop;
+        updateEditorMeta();
         const locLabel = line > 0 ? `Line ${line}${col > 0 ? `, col ${col}` : ''}` : '';
-        const jumpBtn  = line > 0
-          ? `<button class="jump-err-btn" onclick="(function(){})()">↳ Jump to line ${line}</button>`
-          : '';
         jsonErrorBanner.innerHTML =
-          `<span>⚠ ${locLabel ? `<strong>${locLabel}</strong> — ` : ''}${escHtml(err?.message ?? String(err))}</span>${jumpBtn}`;
+          `<span>⚠ ${locLabel ? `<strong>${locLabel}</strong> — ` : ''}${escHtml(err?.message ?? String(err))}</span>` +
+          (line > 0 ? `<button class="jump-err-btn">↳ Jump to line ${line}</button>` : '');
         jsonErrorBanner.classList.remove('hidden');
         if (line > 0) {
           jsonErrorBanner.querySelector('.jump-err-btn')?.addEventListener('click', () => jumpToLine(line, col));
@@ -434,9 +436,8 @@
         refreshLineNums();
       }
 
-      input.addEventListener('input',  () => { clearParseError(); refreshLineNums(); });
+      input.addEventListener('input',  () => { clearParseError(); refreshLineNums(); scheduleRender(); });
       input.addEventListener('scroll', () => { lineNums.scrollTop = input.scrollTop; });
-      refreshLineNums();
 
       function readIntoText(inputFile, target) {
         const f = inputFile.files?.[0];
@@ -444,35 +445,74 @@
         const reader = new FileReader();
         reader.onload = () => {
           target.value = reader.result ?? '';
-          if (target === input) { clearParseError(); refreshLineNums(); }
+          clearParseError();
+          refreshLineNums();
+          refreshColumn('input');
+          status.textContent = `Loaded ${f.name}`;
         };
-        reader.onerror = () => { target.value = ''; alert('Failed to read file: ' + reader.error); };
+        reader.onerror = () => { alert('Failed to read file: ' + reader.error); };
         reader.readAsText(f);
       }
 
       file.addEventListener('change', () => readIntoText(file, input));
 
-      let currentView = 'none'; // 'tree' | 'graph' | 'table' | 'none'
-      let inputHidden = false;
-      let searchResults = [];
-      let currentSearchIndex = -1;
-      let lastSearchDescription = '';
-      let lastSearchHits = [];
+      // ---- Memory slots (persisted to sessionStorage) ----
+      const SLOTS_STORE_KEY = 'pavironica_viewer_slots';
+      const mem = [
+        { value: null, label: '' },
+        { value: null, label: '' },
+        { value: null, label: '' }
+      ];
+
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(SLOTS_STORE_KEY) || 'null');
+        if (Array.isArray(saved)) {
+          saved.slice(0, 3).forEach((s, i) => {
+            if (s && typeof s === 'object') {
+              mem[i].value = typeof s.value === 'string' ? s.value : null;
+              mem[i].label = typeof s.label === 'string' ? s.label : '';
+            }
+          });
+        }
+      } catch (_) {}
+
+      function persistSlots() {
+        try { sessionStorage.setItem(SLOTS_STORE_KEY, JSON.stringify(mem)); } catch (_) {}
+      }
+
+      function truncateLabel(text, maxLen = 12) {
+        const raw = String(text ?? '').trim();
+        if (!raw) return '';
+        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      }
+
+      function buildSlotPreview(text, maxLen = 80) {
+        const raw = String(text ?? '').trim().replace(/\s+/g, ' ');
+        if (!raw) return '(empty)';
+        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      }
 
       // ---- Slot / multi-column state ----
-      const visibleSlots = new Set(['input']); // which slots are rendered as columns
+      const visibleSlots = new Set(['input']); // which slots are rendered as tree columns
       let activeSlot = 'input';                // which column search/path pane targets
       const columnStates = new Map();          // slot -> { treeEl, selectedLine }
 
+      function slotIndex(slot) { return parseInt(slot[1], 10) - 1; }
+
+      function slotHasData(slot) {
+        if (slot === 'input') return true;
+        const m = mem[slotIndex(slot)];
+        return m?.value != null && m.value !== '';
+      }
+
       function getSlotData(slot) {
         if (slot === 'input') return input.value;
-        const i = parseInt(slot[1], 10) - 1;
-        return mem[i]?.value ?? '';
+        return mem[slotIndex(slot)]?.value ?? '';
       }
 
       function getSlotLabel(slot) {
         if (slot === 'input') return 'Input';
-        const i = parseInt(slot[1], 10) - 1;
+        const i = slotIndex(slot);
         const lbl = mem[i]?.label;
         return lbl ? `M${i + 1}: ${lbl}` : `M${i + 1}`;
       }
@@ -487,49 +527,155 @@
       }
 
       function updateSidePaneLabels() {
-        const tag = visibleSlots.size > 1
-          ? ` <span class="active-slot-tag">${getSlotLabel(activeSlot)}</span>`
-          : '';
-        pathSlotLabel.innerHTML  = tag;
-        activeSlotLabel.innerHTML = tag;
+        pathSlotLabel.textContent = '';
+        activeSlotLabel.textContent = '';
+        if (visibleSlots.size > 1) {
+          for (const el of [pathSlotLabel, activeSlotLabel]) {
+            const tag = document.createElement('span');
+            tag.className = 'active-slot-tag';
+            tag.textContent = getSlotLabel(activeSlot);
+            el.appendChild(tag);
+          }
+        }
       }
 
-      // ---- Slot selector buttons ----
-      function updateSlotButtons() {
-        document.querySelectorAll('.slot-btn').forEach((btn) => {
-          const slot = btn.dataset.slot;
-          btn.classList.toggle('slot-btn-active', visibleSlots.has(slot));
-          if (slot === 'input') { btn.textContent = 'Input'; return; }
-          const i = parseInt(slot[1], 10) - 1;
-          const hasData = mem[i]?.value != null && mem[i].value !== '';
-          btn.disabled = !hasData;
+      // ---- Slot chips ----
+      function updateSlotChips() {
+        document.querySelectorAll('.slot-chip').forEach((chip) => {
+          const slot = chip.dataset.slot;
+          chip.classList.toggle('slot-chip-active', visibleSlots.has(slot));
+          if (slot === 'input') { chip.textContent = 'Input'; return; }
+          const i = slotIndex(slot);
+          const hasData = slotHasData(slot);
           if (!hasData && visibleSlots.has(slot)) visibleSlots.delete(slot);
           const lbl = mem[i]?.label;
-          btn.textContent = lbl ? `M${i+1}: ${truncateLabel(lbl, 10)}` : `M${i+1}`;
-          btn.title = `Toggle: show M${i+1}${lbl ? ' (' + lbl + ')' : ''}`;
+          chip.textContent = `${lbl ? `M${i+1}: ${truncateLabel(lbl)}` : `M${i+1}`}${hasData ? ' *' : ''}`;
+          chip.title = `M${i+1} — Click: show/hide column. Shift/Ctrl+Click: save editor here. Double-click: load into editor. Right-click: rename.\nStored: ${buildSlotPreview(mem[i]?.value)}`;
         });
       }
 
       function toggleSlot(slot) {
         if (visibleSlots.has(slot)) {
-          if (visibleSlots.size === 1) return; // always keep at least one
+          if (visibleSlots.size === 1) { status.textContent = 'At least one column stays visible'; return; }
           visibleSlots.delete(slot);
-          if (activeSlot === slot) {
-            activeSlot = [...visibleSlots][0];
-          }
+          if (activeSlot === slot) activeSlot = [...visibleSlots][0];
         } else {
           visibleSlots.add(slot);
           activeSlot = slot; // focus the newly added column
         }
-        updateSlotButtons();
-        if (currentView === 'tree') renderColumns();
+        updateSlotChips();
+        renderColumns();
       }
 
-      document.querySelectorAll('.slot-btn').forEach((b) => {
-        b.addEventListener('click', () => toggleSlot(b.dataset.slot));
+      function saveSlot(i) {
+        mem[i].value = input.value;
+        persistSlots();
+        updateSlotChips();
+        if (visibleSlots.has(`m${i+1}`)) refreshColumn(`m${i+1}`);
+        status.textContent = `Saved to M${i+1}`;
+      }
+
+      function loadSlot(i) {
+        if (mem[i].value == null) { status.textContent = `M${i+1} is empty`; return; }
+        input.value = mem[i].value;
+        clearParseError();
+        refreshLineNums();
+        refreshColumn('input');
+        status.textContent = `Loaded M${i+1} into editor`;
+      }
+
+      function renameSlot(i) {
+        const current = mem[i].label || '';
+        const next = window.prompt(`Label for M${i + 1} (leave empty to clear):`, current);
+        if (next === null) return;
+        mem[i].label = String(next).trim();
+        persistSlots();
+        updateSlotChips();
+        updateSidePaneLabels();
+        const hdr = treeColumns.querySelector(`.tree-column[data-slot="m${i+1}"] .tree-column-header`);
+        if (hdr) hdr.textContent = getSlotLabel(`m${i+1}`);
+        status.textContent = mem[i].label ? `Renamed M${i+1}` : `Cleared label for M${i+1}`;
+      }
+
+      document.querySelectorAll('.slot-chip').forEach((chip) => {
+        const slot = chip.dataset.slot;
+        chip.addEventListener('click', (ev) => {
+          if (slot !== 'input' && (ev.shiftKey || ev.ctrlKey || ev.altKey)) { saveSlot(slotIndex(slot)); return; }
+          if (slot !== 'input' && !slotHasData(slot)) {
+            status.textContent = `M${slotIndex(slot)+1} is empty — Shift+click to save the editor content into it`;
+            return;
+          }
+          toggleSlot(slot);
+        });
+        if (slot !== 'input') {
+          chip.addEventListener('dblclick', () => loadSlot(slotIndex(slot)));
+          chip.addEventListener('contextmenu', (ev) => { ev.preventDefault(); renameSlot(slotIndex(slot)); });
+        }
       });
 
       // ---- Column rendering ----
+      let searchResults = [];
+      let currentSearchIndex = -1;
+      let lastSearchDescription = '';
+      let lastSearchHits = [];
+
+      function buildEmptyHint() {
+        const hint = document.createElement('div');
+        hint.className = 'tree-empty';
+        hint.innerHTML = 'Paste JSON with <kbd>Ctrl+V</kbd> (anywhere on this page),<br/>drop a <kbd>.json</kbd> file, or type in the editor.';
+        return hint;
+      }
+
+      function renderColumnContent(slot, state) {
+        const dataText = getSlotData(slot);
+        if (slot === 'input' && !dataText.trim()) {
+          state.treeEl.innerHTML = '';
+          state.treeEl.appendChild(buildEmptyHint());
+          return;
+        }
+        try {
+          renderTree(state.treeEl, JSON.parse(dataText));
+          collapseAll(state.treeEl);
+          if (slot === 'input') clearParseError();
+        } catch (e) {
+          state.treeEl.textContent = (e?.message) ?? String(e);
+          if (slot === 'input') showParseError(dataText, e);
+        }
+      }
+
+      function buildColumn(slot, isMulti) {
+        const col = document.createElement('div');
+        col.className = 'tree-column';
+        col.dataset.slot = slot;
+
+        if (isMulti) {
+          const hdr = document.createElement('div');
+          hdr.className = 'tree-column-header';
+          hdr.textContent = getSlotLabel(slot);
+          col.appendChild(hdr);
+        }
+
+        const treeEl = document.createElement('div');
+        treeEl.className = 'tree';
+        col.appendChild(treeEl);
+
+        const state = { treeEl, selectedLine: null };
+        columnStates.set(slot, state);
+        renderColumnContent(slot, state);
+
+        treeEl.addEventListener('click', (ev) => {
+          const line = ev.target.closest('.line');
+          if (!line || !treeEl.contains(line)) return;
+          if (state.selectedLine) state.selectedLine.classList.remove('path-selected');
+          state.selectedLine = line;
+          line.classList.add('path-selected');
+          if (activeSlot !== slot) setActiveSlot(slot);
+          selectedPath.textContent = line.dataset.path || 'root>';
+        });
+
+        return col;
+      }
+
       function renderColumns() {
         treeColumns.innerHTML = '';
         columnStates.clear();
@@ -538,68 +684,38 @@
 
         const slots = [...visibleSlots];
         const isMulti = slots.length > 1;
+        for (const slot of slots) treeColumns.appendChild(buildColumn(slot, isMulti));
 
-        for (const slot of slots) {
-          const col = document.createElement('div');
-          col.className = 'tree-column';
-          col.dataset.slot = slot;
-
-          if (isMulti) {
-            const hdr = document.createElement('div');
-            hdr.className = 'tree-column-header';
-            hdr.textContent = getSlotLabel(slot);
-            col.appendChild(hdr);
-          }
-
-          const treeEl = document.createElement('div');
-          treeEl.className = 'tree';
-          col.appendChild(treeEl);
-          treeColumns.appendChild(col);
-
-          const state = { treeEl, selectedLine: null };
-          columnStates.set(slot, state);
-
-          const dataText = getSlotData(slot);
-          try {
-            renderTree(treeEl, JSON.parse(dataText));
-            collapseAll(treeEl);
-            if (slot === 'input') clearParseError();
-          } catch (e) {
-            treeEl.textContent = (e?.message) ?? String(e);
-            if (slot === 'input') showParseError(dataText, e);
-          }
-
-          // Per-column click handler
-          treeEl.addEventListener('click', (ev) => {
-            const line = ev.target.closest('.line');
-            if (!line || !treeEl.contains(line)) return;
-            if (state.selectedLine) state.selectedLine.classList.remove('path-selected');
-            state.selectedLine = line;
-            line.classList.add('path-selected');
-            if (activeSlot !== slot) setActiveSlot(slot);
-            selectedPath.textContent = line.dataset.path || 'root>';
-          });
-        }
-
-        if (!visibleSlots.has(activeSlot)) {
-          activeSlot = [...visibleSlots][0] ?? 'input';
-        }
+        if (!visibleSlots.has(activeSlot)) activeSlot = [...visibleSlots][0] ?? 'input';
         updateSidePaneLabels();
       }
 
-      // ---- Helpers shared with search ----
-      function setInputHidden(hidden) {
-        inputHidden = !!hidden;
-        inputCard.classList.toggle('hidden', inputHidden);
-        btnToggleInput.textContent = inputHidden ? 'Show Input' : 'Hide Input';
+      // Refresh a single column in place (keeps the other columns' expansion state)
+      function refreshColumn(slot) {
+        const state = columnStates.get(slot);
+        if (!state) { if (visibleSlots.has(slot)) renderColumns(); return; }
+        if (state.selectedLine) { state.selectedLine = null; }
+        renderColumnContent(slot, state);
+        if (activeSlot === slot) {
+          resetAdvancedSearch();
+          selectedPath.textContent = 'Click a line in the tree to see its path.';
+        }
       }
 
+      // ---- Auto-render (debounced) ----
+      let renderTimer = null;
+      function scheduleRender() {
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(() => refreshColumn('input'), 300);
+      }
+
+      // ---- Search helpers ----
       function resetSelectedPathPanel() {
         columnStates.forEach((state) => {
           if (state.selectedLine) state.selectedLine.classList.remove('path-selected');
           state.selectedLine = null;
         });
-        selectedPath.textContent = 'Click a line on the left to see its path.';
+        selectedPath.textContent = 'Click a line in the tree to see its path.';
       }
 
       function formatPathText(segments) {
@@ -897,8 +1013,6 @@
           return;
         }
 
-        if (currentView !== 'tree') showView('tree');
-
         const hits = [];
         if (term) {
           const kvParsed = parseKeyValueQuery(term);
@@ -936,156 +1050,76 @@
         focusSearchResult(0);
       }
 
-      function showView(mode) {
-        currentView = mode;
-        if (mode === 'tree') {
-          treeCard.classList.remove('hidden');
-          tableCard.classList.add('hidden');
-          graphCard.classList.add('hidden');
-          renderColumns();
-        } else if (mode === 'table') {
-          tableCard.classList.remove('hidden');
-          treeCard.classList.add('hidden');
-          graphCard.classList.add('hidden');
-          try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); }
-        } else if (mode === 'graph') {
-          graphCard.classList.remove('hidden');
-          tableCard.classList.add('hidden');
-          treeCard.classList.add('hidden');
-          try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); }
-        } else {
-          treeCard.classList.add('hidden');
-          tableCard.classList.add('hidden');
-          graphCard.classList.add('hidden');
-        }
-      }
-
-      btn.addEventListener('click', () => {
+      // ---- Format button ----
+      btnFormat.addEventListener('click', () => {
         status.textContent = 'Formatting...';
-        btn.disabled = true;
+        btnFormat.disabled = true;
         try {
           const n = Math.max(0, Math.min(10, parseInt(indent.value, 10) || 0));
           input.value = formatJson(input.value, n);
           status.textContent = 'Done';
           clearParseError();
           refreshLineNums();
-          if (currentView === 'tree') renderColumns();
-          else if (currentView === 'table') { try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); } }
-          else if (currentView === 'graph') { try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); } }
+          refreshColumn('input');
         } catch (err) {
           console.error(err);
           status.textContent = 'Error';
           showParseError(input.value, err);
-          if (currentView === 'tree') { const t = getActiveTree(); if (t) t.textContent = (err?.message) ?? String(err); }
-          else if (currentView === 'table') tableView.textContent = (err?.message) ?? String(err);
         } finally {
-          btn.disabled = false;
+          btnFormat.disabled = false;
         }
       });
 
-      btnTreeView?.addEventListener('click',   () => showView('tree'));
-      btnTableView?.addEventListener('click',  () => showView('table'));
-      btnGraphView?.addEventListener('click',  () => showView('graph'));
-      btnToggleInput?.addEventListener('click', () => setInputHidden(!inputHidden));
       btnAdvancedSearch?.addEventListener('click', runAdvancedSearch);
       advancedSearchQuery?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
-      advancedSearchNumVal?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
-      advancedSearchNumKey?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
+      advancedSearchNumVal?.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
+      advancedSearchNumKey?.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
       advancedSearchPath?.addEventListener('keydown',   (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runAdvancedSearch(); } });
       btnSearchPrev?.addEventListener('click', () => focusSearchResult(currentSearchIndex - 1));
       btnSearchNext?.addEventListener('click', () => focusSearchResult(currentSearchIndex + 1));
       advancedSearchNumStats?.addEventListener('change', () => updateNumStats(lastSearchHits));
-      setInputHidden(false);
 
-      btnJumpTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      // ---- Editor collapse ----
+      const EDITOR_COLLAPSED_KEY = 'pavironica_viewer_editor_collapsed';
 
-      btnExpand.addEventListener('click', () => {
-        if (currentView === 'tree') {
-          columnStates.forEach(({ treeEl }) => expandAll(treeEl));
-        } else if (currentView === 'table') {
-          setTableViewOpen(tableView, true);
-        } else if (currentView === 'graph') {
-          graphSvg._graphCtl && graphSvg._graphCtl.expandAll();
-        }
-      });
-      btnCollapse.addEventListener('click', () => {
-        if (currentView === 'tree') {
-          columnStates.forEach(({ treeEl }) => collapseAll(treeEl));
-        } else if (currentView === 'table') {
-          setTableViewOpen(tableView, false);
-        } else if (currentView === 'graph') {
-          graphSvg._graphCtl && graphSvg._graphCtl.collapseAll();
-        }
-      });
-
-      enablePanScroll(graphWrap);
-
-      // ---- Memory slots ----
-      const mem = [
-        { value: null, label: '' },
-        { value: null, label: '' },
-        { value: null, label: '' }
-      ];
-
-      function truncateLabel(text, maxLen = 14) {
-        const raw = String(text ?? '').trim();
-        if (!raw) return '';
-        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
+      function setEditorCollapsed(collapsed) {
+        workspace.classList.toggle('editor-collapsed', collapsed);
+        try { localStorage.setItem(EDITOR_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (_) {}
       }
 
-      function buildSlotPreview(text, maxLen = 80) {
-        const raw = String(text ?? '').trim().replace(/\s+/g, ' ');
-        if (!raw) return '(empty)';
-        return raw.length > maxLen ? `${raw.slice(0, maxLen - 1)}…` : raw;
-      }
+      btnEditorCollapse.addEventListener('click', () => setEditorCollapsed(true));
+      editorStrip.addEventListener('click', () => setEditorCollapsed(false));
 
-      function refreshMemLabels() {
-        [memBtn1, memBtn2, memBtn3].forEach((b, i) => {
-          if (!b) return;
-          const base = `M${i+1}`;
-          const hasData = mem[i].value != null && mem[i].value !== '';
-          const shortLabel = truncateLabel(mem[i].label);
-          const labelPart = shortLabel ? ` ${shortLabel}` : '';
-          b.textContent = `${base}${labelPart}${hasData ? ' *' : ''}`;
-          b.title = `Click: load. Shift/Ctrl/Alt+Click: save. Right-click: rename.\nStored: ${buildSlotPreview(mem[i].value)}`;
-        });
-        updateSlotButtons();
-      }
-
-      function renameSlot(i) {
-        const current = mem[i].label || '';
-        const next = window.prompt(`Label for M${i + 1} (leave empty to clear):`, current);
-        if (next === null) return;
-        mem[i].label = String(next).trim();
-        refreshMemLabels();
-        status.textContent = mem[i].label ? `Renamed M${i+1}` : `Cleared label for M${i+1}`;
-      }
-
-      function saveSlot(i) {
-        mem[i].value = input.value;
-        refreshMemLabels();
-        status.textContent = `Saved to M${i+1}`;
-      }
-
-      function loadSlot(i) {
-        if (mem[i].value == null) { status.textContent = `M${i+1} empty`; return; }
-        input.value = mem[i].value;
+      // ---- Paste / drop anywhere ----
+      document.addEventListener('paste', (ev) => {
+        const t = ev.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        const text = ev.clipboardData?.getData('text');
+        if (!text) return;
+        ev.preventDefault();
+        input.value = text;
         clearParseError();
         refreshLineNums();
-        if (currentView === 'tree') renderColumns();
-        else if (currentView === 'table') { try { renderJsonTable(tableView, JSON.parse(input.value)); } catch (e) { tableView.textContent = (e?.message) ?? String(e); } }
-        else if (currentView === 'graph') { try { renderGraph(graphSvg, JSON.parse(input.value)); } catch (e) { while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild); } }
-        status.textContent = `Loaded M${i+1}`;
-      }
+        refreshColumn('input');
+        status.textContent = 'Pasted into editor';
+      });
 
-      [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('click', (ev) => {
-        if (ev.shiftKey || ev.ctrlKey || ev.altKey) saveSlot(i); else loadSlot(i);
-      }));
-      [memBtn1, memBtn2, memBtn3].forEach((b, i) => b?.addEventListener('contextmenu', (ev) => {
+      document.addEventListener('dragover', (ev) => { ev.preventDefault(); });
+      document.addEventListener('drop', (ev) => {
         ev.preventDefault();
-        renameSlot(i);
-      }));
-      refreshMemLabels();
+        const f = ev.dataTransfer?.files?.[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          input.value = reader.result ?? '';
+          clearParseError();
+          refreshLineNums();
+          refreshColumn('input');
+          status.textContent = `Loaded ${f.name}`;
+        };
+        reader.onerror = () => alert('Failed to read file.');
+        reader.readAsText(f);
+      });
 
       // ---- JSON Comparator modal ----
       const comparatorModal  = document.getElementById('comparator-modal');
@@ -1221,12 +1255,11 @@
         const keys = ['pavironica_viewer_input','pavironica_viewer_m1','pavironica_viewer_m2','pavironica_viewer_m3'];
         const vals = keys.map(k => { const v = sessionStorage.getItem(k); sessionStorage.removeItem(k); return v; });
         if (vals.some(v => v !== null)) {
-          if (vals[0] !== null) { input.value = vals[0]; clearParseError(); refreshLineNums(); }
-          if (vals[1] !== null) { mem[0].value = vals[1]; }
-          if (vals[2] !== null) { mem[1].value = vals[2]; }
-          if (vals[3] !== null) { mem[2].value = vals[3]; }
-          refreshMemLabels();
-          showView('tree');
+          if (vals[0] !== null) input.value = vals[0];
+          if (vals[1] !== null) mem[0].value = vals[1];
+          if (vals[2] !== null) mem[1].value = vals[2];
+          if (vals[3] !== null) mem[2].value = vals[3];
+          persistSlots();
         }
       } catch (_) {}
 
@@ -1244,11 +1277,16 @@
       document.getElementById('btn-font-minus').addEventListener('click', () => applyTreeFontSize(treeFontSize - FONT_STEP));
       document.getElementById('btn-font-plus').addEventListener('click',  () => applyTreeFontSize(treeFontSize + FONT_STEP));
 
-      // ---- Utilities: Key value extractor ----
+      // ---- Key value extractor ----
       const keyExtractorKey    = document.getElementById('key-extractor-key');
       const keyExtractorPath   = document.getElementById('key-extractor-path');
+      const keyExtractorQuote  = document.getElementById('key-extractor-quote');
+      const keyExtractorSep    = document.getElementById('key-extractor-sep');
+      const keyExtractorParens = document.getElementById('key-extractor-parens');
       const btnKeyExtractor    = document.getElementById('btn-key-extractor');
+      const btnKeyExtractorCopy = document.getElementById('btn-key-extractor-copy');
       const keyExtractorOutput = document.getElementById('key-extractor-output');
+      let lastExtractedValues  = null;
 
       function collectValuesByKey(value, targetKey, out = []) {
         if (Array.isArray(value)) {
@@ -1262,46 +1300,88 @@
         return out;
       }
 
-      function formatExtractedValue(v) {
-        if (v === null) return 'null';
-        if (typeof v === 'string') return `"${v}"`;
-        if (typeof v === 'object') return JSON.stringify(v);
-        return String(v);
+      function formatExtractedValues(values) {
+        const quote = keyExtractorQuote.value;
+        const sep   = keyExtractorSep.value;
+        const wrap  = keyExtractorParens.checked;
+        const items = values.map((v) => {
+          if (v === null) return 'null'; // never quoted, so it can act as SQL NULL
+          const text = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          if (!quote) return text;
+          // SQL-style escaping: double any embedded quote character
+          return quote + text.split(quote).join(quote + quote) + quote;
+        });
+        const joined = sep === 'comma-inline' ? items.join(', ')
+                     : sep === 'comma-newline' ? items.join(',\n')
+                     : items.join('\n');
+        return wrap ? `(${joined})` : joined;
+      }
+
+      function showExtractorMessage(msg) {
+        lastExtractedValues = null;
+        btnKeyExtractorCopy.disabled = true;
+        keyExtractorOutput.textContent = msg;
+        keyExtractorOutput.classList.remove('hidden');
+      }
+
+      function renderExtractorOutput() {
+        if (!lastExtractedValues) return;
+        keyExtractorOutput.textContent = formatExtractedValues(lastExtractedValues);
+        keyExtractorOutput.classList.remove('hidden');
+        btnKeyExtractorCopy.disabled = false;
       }
 
       function runKeyExtractor() {
         const targetKey = String(keyExtractorKey?.value ?? '').trim();
-        if (!targetKey) {
-          keyExtractorOutput.textContent = 'Enter a key name.';
-          keyExtractorOutput.classList.remove('hidden');
-          return;
-        }
+        if (!targetKey) { showExtractorMessage('Enter a key name.'); return; }
         let parsed;
         try {
           parsed = JSON.parse(getSlotData(activeSlot));
         } catch (e) {
-          keyExtractorOutput.textContent = 'Invalid JSON. Fix it first.';
-          keyExtractorOutput.classList.remove('hidden');
+          showExtractorMessage('Invalid JSON. Fix it first.');
           return;
         }
         const limitRaw = String(keyExtractorPath?.value ?? '').trim();
         const pathCfg  = parseSearchLimitPath(limitRaw);
         const resolved = resolvePathTarget(parsed, pathCfg.segments);
-        if (!resolved.ok) {
-          keyExtractorOutput.textContent = `Invalid limit path: ${resolved.message}`;
-          keyExtractorOutput.classList.remove('hidden');
-          return;
-        }
+        if (!resolved.ok) { showExtractorMessage(`Invalid limit path: ${resolved.message}`); return; }
         const values = collectValuesByKey(resolved.value, targetKey);
-        keyExtractorOutput.textContent = values.length
-          ? values.map(formatExtractedValue).join('\n')
-          : `No values found for key "${targetKey}".`;
-        keyExtractorOutput.classList.remove('hidden');
+        if (!values.length) { showExtractorMessage(`No values found for key "${targetKey}".`); return; }
+        lastExtractedValues = values;
+        renderExtractorOutput();
+        status.textContent = `Extracted ${values.length} value${values.length === 1 ? '' : 's'}`;
       }
 
       btnKeyExtractor?.addEventListener('click', runKeyExtractor);
       keyExtractorKey?.addEventListener('keydown',  (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runKeyExtractor(); } });
       keyExtractorPath?.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); runKeyExtractor(); } });
+      // Re-format the existing extraction when output options change
+      keyExtractorQuote?.addEventListener('change', renderExtractorOutput);
+      keyExtractorSep?.addEventListener('change', renderExtractorOutput);
+      keyExtractorParens?.addEventListener('change', renderExtractorOutput);
+
+      btnKeyExtractorCopy?.addEventListener('click', async () => {
+        if (!lastExtractedValues) return;
+        const text = formatExtractedValues(lastExtractedValues);
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent = `Copied ${lastExtractedValues.length} value${lastExtractedValues.length === 1 ? '' : 's'}`;
+        } catch (_) {
+          // Clipboard API unavailable (e.g. non-secure context): select the output for manual copy
+          const range = document.createRange();
+          range.selectNodeContents(keyExtractorOutput);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          status.textContent = 'Press Ctrl+C to copy the selected output';
+        }
+      });
+
+      // ---- Init ----
+      try { if (localStorage.getItem(EDITOR_COLLAPSED_KEY) === '1') setEditorCollapsed(true); } catch (_) {}
+      refreshLineNums();
+      updateSlotChips();
+      renderColumns();
     </script>
   </body>
 </html>
