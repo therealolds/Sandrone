@@ -111,6 +111,12 @@
         <li><a href="#photo-slicer">Photo Slicer</a></li>
       </ul>
     </div>
+    <div class="toc-group">
+      <div class="toc-group-label">Text processing</div>
+      <ul>
+        <li><a href="#md-booklet">Booklet Maker</a></li>
+      </ul>
+    </div>
   </nav>
 
   <!-- Main content -->
@@ -440,6 +446,53 @@
         <li>Set the output format (JPG / PNG) and JPEG quality.</li>
         <li>Click <code>Slice</code>. A live preview is shown; click <code>Download all</code> to get all tiles as individual files.</li>
       </ol>
+    </section>
+
+    <section class="tool-section" id="md-booklet">
+      <h2>Booklet Maker</h2>
+      <p class="tool-tagline">Turn a markdown file <em>or an existing PDF</em> into a print-ready, foldable A5 booklet.</p>
+      <a class="open-link" href="PavironicaHTML/mdBooklet.html">Open tool →</a>
+
+      <p>The tool has two input modes, selected with the toggle at the top. Both produce the same kind of output:
+        an A4 file with pages arranged (imposed) so that, printed double-sided and folded in half, they read in
+        order as an A5 booklet you can staple along the fold.</p>
+
+      <h3>From Markdown</h3>
+      <ol>
+        <li>Load a <code>.md</code>/<code>.txt</code> file, or paste markdown text directly into the box.</li>
+        <li>Set a <strong>title</strong> for the cover page, a body text size, and whether each <code>#</code> heading
+            should start a new page, get a cover page and a table of contents.</li>
+        <li>Optionally set a <strong>signature size</strong> (a multiple of 4) to split a long booklet into several
+            stapled sections instead of one large one.</li>
+        <li>Click <code>Generate booklet</code>. A live preview of the flat A5 pages appears; the summary shows the
+            page and sheet counts.</li>
+        <li>Download the <strong>A4 booklet</strong> (imposed, ready to print) and/or the <strong>A5 PDF</strong>
+            (flat, for reading on screen).</li>
+      </ol>
+      <p class="muted" style="font-size:13px;">Layout rules: <code># / ## / ###</code> become section titles (an
+        <code>#</code> starts a new page and appears in the table of contents); <code>- / * / 1.</code> become
+        bullets; three or more <code>-</code>/<code>*</code>/<code>_</code> force a page break; a blank line starts a
+        new paragraph/stanza, and every other line is kept exactly as written (only wrapped if too wide) so manual
+        line breaks in lyrics, poems and lists are preserved. Bold/italic/code markup is stripped, not styled. Text
+        uses the standard PDF fonts (no embedding): accented Latin characters and common "smart" punctuation work;
+        emoji/CJK/Cyrillic print as "?".</p>
+
+      <h3>From an existing PDF</h3>
+      <ol>
+        <li>Choose a PDF file. Any page size works: A4 pages are scaled down to A5, A5 pages fit as-is, and other
+            sizes are centered and scaled to fill an A5 half (aspect ratio preserved).</li>
+        <li>Optionally set a <strong>signature size</strong>, same as above.</li>
+        <li>Click <code>Impose PDF into booklet</code> and download the imposed A4 file.</li>
+      </ol>
+      <p class="muted" style="font-size:13px;">This mode keeps your pages exactly as they are — text and
+        <strong>images</strong> alike — so it's the way to make a booklet with pictures or full styling: export your
+        document to PDF first, then impose it here. The PDF is read entirely in your browser (nothing is uploaded).
+        Pages that carry a <code>/Rotate</code> flag may not re-orient correctly; flatten/"print to PDF" them first if
+        so.</p>
+
+      <h3>Printing</h3>
+      <p>Print the A4 file <strong>double-sided, flip on the short edge</strong>, at actual size (100%, no "fit to
+        page"). Then fold every sheet in half and staple along the fold (saddle-stitch).</p>
     </section>
 
   </main>
