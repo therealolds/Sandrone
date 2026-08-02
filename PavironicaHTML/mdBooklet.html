@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Booklet Maker · Pavironica</title>
+    <script>(function(){try{const t=localStorage.getItem('theme'); if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+    <link rel="stylesheet" href="../assets/css/style.css" />
+    <!-- Vendored locally so the tool stays fully offline / no uploads. Used only for PDF-input mode. -->
+    <script src="../assets/vendor/pdf-lib.min.js"></script>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans"; }
+      header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+      header a { color: var(--muted); text-decoration: none; border: 1px solid var(--border); padding: 6px 10px; border-radius: 8px; }
+      header a:hover { border-color: var(--accent); color: var(--text); }
+      header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2px; }
+      main { padding: 20px; max-width: clamp(1100px, 95vw, 1800px); margin: 0 auto; display: grid; gap: 16px; }
+      .row { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
+      @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      label { font-size: 12px; color: var(--muted); }
+      input[type="file"] { width: 100%; }
+      input[type="text"], input[type="number"] { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+      textarea { width: 100%; min-height: 320px; resize: vertical; background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+      .btn { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #002b36; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .btn.secondary { background: var(--input); color: var(--text); border: 1px solid var(--border); }
+      .muted { color: var(--muted); }
+      .warn { color: #fbbf24; }
+      .ok { color: #34d399; }
+      .result { background: var(--result); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; }
+      .opt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px 16px; margin-top: 8px; }
+      .opt-grid .field { display: flex; flex-direction: column; gap: 4px; }
+      .opt-grid label.check { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; color: var(--text); }
+      .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+      .preview-wrap { background: #111; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; height: 640px; }
+      .preview-wrap iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+      .preview-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 13px; text-align: center; padding: 20px; }
+      .downloads { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+      .mode-switch { display: flex; gap: 8px; flex-wrap: wrap; }
+      .mode-switch label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+      .mode-switch input { accent-color: var(--accent); }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../index.html">← Back</a>
+      <h1>Booklet Maker</h1>
+      <span class="muted">Local-only · No uploads</span>
+    </header>
+    <main>
+      <div class="card">
+        <div class="controls" style="justify-content: space-between;">
+          <div class="mode-switch">
+            <label><input type="radio" name="mode" value="md" checked /> From Markdown</label>
+            <label><input type="radio" name="mode" value="pdf" /> From existing PDF</label>
+          </div>
+          <span class="muted" style="font-size:12px;">Arrange pages into a fold-and-staple A5 booklet on A4 sheets.</span>
+        </div>
+      </div>
+
+      <!-- ============================ MARKDOWN MODE ============================ -->
+      <div id="panel-md" class="card">
+        <div class="controls" style="justify-content: space-between;">
+          <label>Markdown file
+            <input id="md-file" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" />
+          </label>
+          <span class="muted" style="font-size:12px;">...or paste the text directly below.</span>
+        </div>
+        <textarea id="md-input" placeholder="# Chapter one&#10;&#10;A paragraph. Blank lines start a new paragraph/stanza.&#10;Lines are kept as written and only wrapped if they don't fit the page.&#10;&#10;- a bullet&#10;- another bullet&#10;&#10;# Chapter two&#10;..."></textarea>
+
+        <div class="opt-grid">
+          <div class="field">
+            <label for="md-title">Title (cover page)</label>
+            <input id="md-title" type="text" value="Document" />
+          </div>
+          <div class="field">
+            <label for="md-body-size">Body text size (pt)</label>
+            <input id="md-body-size" type="number" min="7" max="14" step="0.5" value="10.5" />
+          </div>
+          <div class="field">
+            <label for="md-signature">Signature size (optional)</label>
+            <input id="md-signature" type="number" min="4" step="4" placeholder="empty = one booklet" />
+            <div class="hint">Multiple of 4 (e.g. 16). Splits a long booklet into several stapled sections.</div>
+          </div>
+          <label class="check"><input id="md-h1break" type="checkbox" checked /> Start a new page at each # heading</label>
+          <label class="check"><input id="md-cover" type="checkbox" checked /> Include cover page</label>
+          <label class="check"><input id="md-toc" type="checkbox" checked /> Include table of contents (# headings)</label>
+        </div>
+
+        <div class="controls" style="justify-content: space-between; margin-top: 12px;">
+          <button id="md-generate" class="btn">Generate booklet</button>
+          <span id="md-status" class="muted">Load or paste a markdown document to begin.</span>
+        </div>
+      </div>
+
+      <!-- ============================== PDF MODE ============================== -->
+      <div id="panel-pdf" class="card hidden">
+        <div class="controls" style="justify-content: space-between;">
+          <label>PDF file
+            <input id="pdf-file" type="file" accept=".pdf,application/pdf" />
+          </label>
+          <span class="muted" style="font-size:12px;">Any page size works — A4 pages are scaled down to A5, A5 pages fit as-is.</span>
+        </div>
+
+        <div class="opt-grid">
+          <div class="field">
+            <label for="pdf-signature">Signature size (optional)</label>
+            <input id="pdf-signature" type="number" min="4" step="4" placeholder="empty = one booklet" />
+            <div class="hint">Multiple of 4 (e.g. 16). Splits a long booklet into several stapled sections.</div>
+          </div>
+        </div>
+
+        <div class="hint" style="margin-top:6px;">
+          Each source page is centered and scaled to fill an A5 half of the sheet (aspect ratio preserved).
+          Pages are kept as-is — text and <strong>images</strong> alike — so this is the way to include pictures.
+        </div>
+
+        <div class="controls" style="justify-content: space-between; margin-top: 12px;">
+          <button id="pdf-generate" class="btn">Impose PDF into booklet</button>
+          <span id="pdf-status" class="muted">Choose a PDF to begin.</span>
+        </div>
+      </div>
+
+      <!-- ============================ SHARED OUTPUT ============================ -->
+      <div class="row">
+        <div class="card result">
+          <div id="preview-label" class="muted" style="margin-bottom:8px;">Preview</div>
+          <div class="preview-wrap">
+            <iframe id="preview" class="hidden" title="PDF preview"></iframe>
+            <div id="preview-empty" class="preview-empty">Generate a booklet to preview it here.</div>
+          </div>
+        </div>
+        <div class="card result">
+          <div class="muted" style="margin-bottom:8px;">Output</div>
+          <div id="summary" class="muted">Nothing generated yet.</div>
+          <div class="downloads">
+            <button id="dl-a4" class="btn" disabled>Download A4 booklet (imposed, print this)</button>
+            <button id="dl-a5" class="btn secondary hidden" disabled>Download A5 PDF (flat, for reading)</button>
+          </div>
+          <div class="hint" style="margin-top:12px;">
+            <strong>Printing:</strong> print the A4 file <em>double-sided, flip on the short edge</em>, at
+            actual size (100%, no "fit to page"). Then fold every sheet in half and staple along the fold
+            (saddle-stitch) to get an A5 booklet with pages in the right order.
+          </div>
+          <div id="hint-fonts" class="hint" style="margin-top:8px;">
+            Markdown mode supports accented Latin characters and common "smart" punctuation; emoji/CJK/Cyrillic
+            print as "?". For pictures or full styling, export to PDF first and use <em>From existing PDF</em>.
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { generateBooklet, readFileAsText } from "../PavironicaJS/mdBooklet.js";
+      import { imposePdf, readFileAsArrayBuffer } from "../PavironicaJS/pdfImposer.js";
+      import { pdfBlob, downloadBlob } from "../PavironicaJS/pdfLite.js";
+
+      // --- shared output elements ---
+      const panelMd = document.getElementById('panel-md');
+      const panelPdf = document.getElementById('panel-pdf');
+      const previewLabel = document.getElementById('preview-label');
+      const preview = document.getElementById('preview');
+      const previewEmpty = document.getElementById('preview-empty');
+      const summary = document.getElementById('summary');
+      const dlA4 = document.getElementById('dl-a4');
+      const dlA5 = document.getElementById('dl-a5');
+      const hintFonts = document.getElementById('hint-fonts');
+
+      let a4Bytes = null;   // imposed, print this
+      let a5Bytes = null;   // flat reading version (markdown mode only)
+      let previewUrl = null;
+      let downloadBase = 'booklet';
+
+      function setPreview(bytes) {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(pdfBlob(bytes));
+        preview.src = previewUrl;
+        preview.classList.remove('hidden');
+        previewEmpty.style.display = 'none';
+      }
+      function resetOutput() {
+        a4Bytes = null; a5Bytes = null;
+        dlA4.disabled = true; dlA5.disabled = true;
+      }
+
+      // --- mode switching ---
+      function applyMode(mode) {
+        const pdf = mode === 'pdf';
+        panelPdf.classList.toggle('hidden', !pdf);
+        panelMd.classList.toggle('hidden', pdf);
+        dlA5.classList.toggle('hidden', pdf);          // no separate flat file for PDF input
+        hintFonts.classList.toggle('hidden', pdf);
+        previewLabel.textContent = pdf ? 'Preview (A4 imposed sheets)' : 'Preview (A5, on-screen reading order)';
+      }
+      document.querySelectorAll('input[name="mode"]').forEach((r) => {
+        r.addEventListener('change', () => { if (r.checked) applyMode(r.value); });
+      });
+
+      function baseName(name) {
+        const idx = name.lastIndexOf('.');
+        return idx > 0 ? name.slice(0, idx) : name;
+      }
+
+      // ============================ MARKDOWN MODE ============================
+      const mdFile = document.getElementById('md-file');
+      const mdInput = document.getElementById('md-input');
+      const mdTitle = document.getElementById('md-title');
+      const mdBodySize = document.getElementById('md-body-size');
+      const mdSignature = document.getElementById('md-signature');
+      const mdH1Break = document.getElementById('md-h1break');
+      const mdCover = document.getElementById('md-cover');
+      const mdToc = document.getElementById('md-toc');
+      const mdGenerate = document.getElementById('md-generate');
+      const mdStatus = document.getElementById('md-status');
+      let titleTouched = false;
+      mdTitle.addEventListener('input', () => { titleTouched = true; });
+
+      mdFile.addEventListener('change', async () => {
+        const f = mdFile.files?.[0];
+        if (!f) return;
+        try {
+          mdStatus.textContent = 'Reading file...';
+          const text = await readFileAsText(f);
+          mdInput.value = text;
+          if (!titleTouched) mdTitle.value = baseName(f.name);
+          mdStatus.textContent = `Loaded ${f.name} (${text.length.toLocaleString()} characters).`;
+        } catch (e) {
+          mdStatus.textContent = (e && e.message) ? e.message : String(e);
+        }
+      });
+
+      mdGenerate.addEventListener('click', () => {
+        const md = mdInput.value;
+        if (!md.trim()) { mdStatus.textContent = 'Load or paste a markdown document first.'; return; }
+        mdGenerate.disabled = true;
+        resetOutput();
+        mdStatus.textContent = 'Generating...';
+        setTimeout(() => {
+          try {
+            const result = generateBooklet(md, {
+              title: mdTitle.value,
+              bodySize: parseFloat(mdBodySize.value) || 10.5,
+              pageBreakOnH1: mdH1Break.checked,
+              includeCover: mdCover.checked,
+              includeToc: mdToc.checked,
+              signature: mdSignature.value ? parseInt(mdSignature.value, 10) : null,
+            });
+            a4Bytes = result.a4Bytes;
+            a5Bytes = result.a5Bytes;
+            downloadBase = (mdTitle.value || 'booklet').trim() || 'booklet';
+            summary.innerHTML =
+              `<span class="ok">${result.pageCount}</span> pages ` +
+              `(${result.headingCount} chapter${result.headingCount === 1 ? '' : 's'}) &rarr; ` +
+              `<span class="ok">${result.imposedPageCount}</span> imposed pages on ` +
+              `<span class="ok">${result.sheetCount}</span> A4 sheet${result.sheetCount === 1 ? '' : 's'}.`;
+            mdStatus.textContent = 'Done.';
+            dlA4.disabled = false; dlA5.disabled = false;
+            setPreview(a5Bytes);
+          } catch (e) {
+            console.error(e);
+            mdStatus.textContent = (e && e.message) ? e.message : String(e);
+            summary.textContent = 'Nothing generated yet.';
+          } finally {
+            mdGenerate.disabled = false;
+          }
+        }, 10);
+      });
+
+      // ============================== PDF MODE ==============================
+      const pdfFile = document.getElementById('pdf-file');
+      const pdfSignature = document.getElementById('pdf-signature');
+      const pdfGenerate = document.getElementById('pdf-generate');
+      const pdfStatus = document.getElementById('pdf-status');
+
+      pdfFile.addEventListener('change', () => {
+        const f = pdfFile.files?.[0];
+        pdfStatus.textContent = f ? `Selected ${f.name}.` : 'Choose a PDF to begin.';
+      });
+
+      pdfGenerate.addEventListener('click', async () => {
+        const f = pdfFile.files?.[0];
+        if (!f) { pdfStatus.textContent = 'Choose a PDF file first.'; return; }
+        pdfGenerate.disabled = true;
+        resetOutput();
+        pdfStatus.textContent = 'Imposing...';
+        try {
+          const buf = await readFileAsArrayBuffer(f);
+          const result = await imposePdf(buf, {
+            signature: pdfSignature.value ? parseInt(pdfSignature.value, 10) : null,
+          });
+          a4Bytes = result.bytes;
+          a5Bytes = null;
+          downloadBase = baseName(f.name) || 'booklet';
+          summary.innerHTML =
+            `<span class="ok">${result.sourcePageCount}</span> source pages &rarr; ` +
+            `<span class="ok">${result.imposedPageCount}</span> imposed pages on ` +
+            `<span class="ok">${result.sheetCount}</span> A4 sheet${result.sheetCount === 1 ? '' : 's'}.`;
+          pdfStatus.textContent = 'Done.';
+          dlA4.disabled = false;
+          setPreview(a4Bytes);
+        } catch (e) {
+          console.error(e);
+          pdfStatus.textContent = (e && e.message) ? e.message : String(e);
+          summary.textContent = 'Nothing generated yet.';
+        } finally {
+          pdfGenerate.disabled = false;
+        }
+      });
+
+      // ============================ downloads ============================
+      dlA4.addEventListener('click', () => {
+        if (!a4Bytes) return;
+        downloadBlob(pdfBlob(a4Bytes), `${downloadBase}_libretto_A4.pdf`);
+      });
+      dlA5.addEventListener('click', () => {
+        if (!a5Bytes) return;
+        downloadBlob(pdfBlob(a5Bytes), `${downloadBase}_A5.pdf`);
+      });
+
+      applyMode('md');
+    </script>
+  </body>
+</html>
