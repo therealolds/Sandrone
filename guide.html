@@ -109,6 +109,7 @@
       <div class="toc-group-label">Image processing</div>
       <ul>
         <li><a href="#photo-slicer">Photo Slicer</a></li>
+        <li><a href="#poster-maker">Poster Maker</a></li>
       </ul>
     </div>
     <div class="toc-group">
@@ -447,6 +448,50 @@
         <li>Click <code>Slice</code>. A live preview is shown; click <code>Download all</code> to get all tiles as individual files.</li>
       </ol>
     </section>
+
+    <hr class="section-divider" />
+
+    <!-- WALL PREVIEW -->
+    <section class="tool-section" id="poster-maker">
+      <h2>Poster Maker</h2>
+      <p class="tool-tagline">Print an image at its real size across several sheets, to tape on a wall and see how a print looks before buying it.</p>
+      <a class="open-link" href="PavironicaHTML/posterMaker.html">Open tool →</a>
+
+      <h3>What it's for</h3>
+      <p>You've found a print online and want to know how big it really is and how it looks on your wall before spending
+        money. Take a screenshot of it, tell the tool the print's real dimensions, and it produces a set of sheets
+        (A4 by default, or any paper size you choose) that together reproduce the print at 1:1 scale. Print them, tape
+        them to the wall, and you have a full-size mock-up.</p>
+
+      <h3>Usage</h3>
+      <ol>
+        <li>Add the image three ways: paste a screenshot with <kbd>Ctrl</kbd>+<kbd>V</kbd> (no need to save it first),
+          drag an image file onto the drop zone, or click to pick a file.</li>
+        <li>Set the print's <strong>real size in cm</strong> (a <code>⇄</code> button swaps width and height), and
+          pick the <strong>output paper</strong> you'll print on.</li>
+        <li>Adjust the other print options if needed, then click <code>Generate sheets</code>. A layout preview
+          appears with each sheet labelled <code>R1C1</code>, <code>R1C2</code>, …</li>
+        <li>Click <code>Print</code> and set the scale to <strong>100% / Actual size</strong> — not "Fit to page", or
+          the measurements will be off.</li>
+        <li>Line the sheets up using the corner marks, tape them to the wall, and check the fit.</li>
+      </ol>
+
+      <h3>Options</h3>
+      <table class="opts">
+        <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Output paper</strong></td><td>The sheet you'll print on: A5, A4, A3, US Letter, US Legal, US Tabloid, or <em>Custom…</em> (enter any width × height in cm). The printed page and the layout preview both follow this choice.</td></tr>
+          <tr><td><strong>How to fit the image</strong></td><td><em>Fill and crop</em> (fills each sheet, cropping any overflow), <em>Stretch</em> (distorts to fill exactly), or <em>Fit without cropping</em> (keeps the whole image with white borders).</td></tr>
+          <tr><td><strong>Sheet safety margin</strong></td><td>Unprintable border many printers leave on each edge; the image is kept inside it.</td></tr>
+          <tr><td><strong>Overlap between sheets</strong></td><td>Duplicates a strip of image on adjacent sheet edges so they're easier to align when taped together.</td></tr>
+          <tr><td><strong>Quality (DPI)</strong></td><td>Output resolution — 120 (draft), 150 (good), or 200 (high, slower).</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tip"><strong>Tip:</strong> Everything runs in your browser — the screenshot is never uploaded.</div>
+    </section>
+
+    <hr class="section-divider" />
 
     <section class="tool-section" id="md-booklet">
       <h2>Booklet Maker</h2>
