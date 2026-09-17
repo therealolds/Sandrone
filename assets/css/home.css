@@ -1,0 +1,258 @@
+/* Shared chrome for the landing page and the macro-area pages
+   (index.html, data-dev.html, creative.html). Loaded after style.css. */
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+header h1 {
+  font-size: 24px;
+  letter-spacing: 0.4px;
+  margin: 0;
+}
+
+header p {
+  margin: 6px 0 0;
+}
+
+/* Make header links (info + "← Home") look like plain text */
+.header-left a {
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.header-left a:hover {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
+.back-home {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.header-center {
+  justify-self: center;
+  text-align: center;
+  font-weight: 700;
+}
+
+.theme-toggle {
+  justify-self: end;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+main {
+  padding: 24px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.lead-intro {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0 0 28px;
+  max-width: 640px;
+}
+
+/* Equal-width tool cards, three per row */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.grid>.card {
+  flex: 0 1 calc((100% - 32px) / 3);
+}
+
+@media (max-width: 1000px) {
+  .grid>.card {
+    flex-basis: calc((100% - 16px) / 2);
+  }
+}
+
+@media (max-width: 600px) {
+  .grid>.card {
+    flex-basis: 100%;
+  }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 14px;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+a.card {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---- Home: large macro-area cards (two per row) ---- */
+.home-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.home-grid>.card {
+  flex: 0 1 calc((100% - 18px) / 2);
+  padding: 24px;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .home-grid>.card {
+    flex-basis: 100%;
+  }
+}
+
+.area-card h2 {
+  font-size: 22px;
+}
+
+.area-card .contents {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.area-card .go {
+  margin-top: auto;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- Sections and in-page sub-navigation ---- */
+.section {
+  margin: 0 0 40px;
+  scroll-margin-top: 16px;
+}
+
+.section-title {
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.subnav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 28px;
+}
+
+.subnav a {
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.subnav a:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.subnav a {
+  cursor: pointer;
+}
+
+.subnav a.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ---- Footer ---- */
+footer {
+  margin-top: auto;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-left {
+  justify-self: start;
+}
+
+.footer-center {
+  justify-self: center;
+  text-align: center;
+}
+
+.footer-right {
+  justify-self: end;
+}
+
+/* Dark theme: make bottom-right Contacts link white */
+html:not([data-theme="light"]) .footer-right a {
+  color: #ffffff;
+}

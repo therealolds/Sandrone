@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -15,188 +15,7 @@
         })();
     </script>
     <link rel="stylesheet" href="assets/css/style.css" />
-    <style>
-        /* Page-specific styles for the home grid and footer */
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        header {
-            padding: 24px;
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 12px;
-        }
-
-        header h1 {
-            font-size: 24px;
-            letter-spacing: 0.4px;
-            margin: 0;
-        }
-
-        header p {
-            margin: 6px 0 0;
-        }
-
-        /* Make header link look like plain text */
-        .header-left a {
-            border: none;
-            padding: 0;
-            border-radius: 0;
-            background: transparent;
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        .header-left a:hover {
-            color: var(--accent-2);
-            text-decoration: underline;
-        }
-
-        .header-center {
-            justify-self: center;
-            text-align: center;
-            font-weight: 700;
-        }
-
-        .theme-toggle {
-            justify-self: end;
-        }
-
-        main {
-            padding: 24px;
-            max-width: 1100px;
-        }
-
-        /* Equal-width cards using flexbox with breakpoints */
-        .grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        .grid>.card {
-            flex: 0 1 calc((100% - 32px) / 3);
-        }
-
-        @media (max-width: 1000px) {
-            .grid>.card {
-                flex-basis: calc((100% - 16px) / 2);
-            }
-        }
-
-        @media (max-width: 600px) {
-            .grid>.card {
-                flex-basis: 100%;
-            }
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            color: var(--text);
-            text-decoration: none;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            border-radius: 12px;
-            transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-        }
-
-        a.card {
-            color: var(--text);
-            text-decoration: none;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-        }
-
-        .card h2 {
-            margin: 0;
-            font-size: 18px;
-        }
-
-        .card p {
-            margin: 0;
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        .section {
-            margin: 18px 0 28px;
-        }
-
-        .section-title {
-            margin: 0 0 12px;
-            font-size: 16px;
-            color: var(--muted);
-            letter-spacing: 0.3px;
-        }
-
-        .disabled {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        footer {
-            margin-top: auto;
-            padding: 16px 24px;
-            border-top: 1px solid var(--border);
-            font-size: 12px;
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .footer-left {
-            justify-self: start;
-        }
-
-        .footer-center {
-            justify-self: center;
-            text-align: center;
-        }
-
-        .footer-right {
-            justify-self: end;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 999px;
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            background: rgba(34, 211, 238, 0.2);
-            font-size: 11px;
-        }
-
-        .theme-toggle {
-            background: transparent;
-            color: var(--muted);
-            border: 1px solid var(--border);
-            padding: 6px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        .theme-toggle:hover {
-            border-color: var(--accent);
-            color: var(--text);
-        }
-
-        /* Dark theme: make bottom-right Contacts link white */
-        html:not([data-theme="light"]) .footer-right a {
-            color: #ffffff;
-        }
-    </style>
+    <link rel="stylesheet" href="assets/css/home.css" />
 </head>
 
 <body>
@@ -211,91 +30,22 @@
         <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme"></button>
     </header>
     <main>
+        <p class="lead-intro">A small collection of static, browser-only tools. Pick an area to jump in.</p>
 
-        <section class="section">
-            <h2 class="section-title">Data visualization tools</h2>
-            <div class="grid">
-                <a class="card" href="PavironicaHTML/jsonViewer.html">
-                    <h2>JSON Viewer</h2>
-                    <p>View and analyze JSON files.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/xmlViewer.html">
-                    <h2>XML Viewer</h2>
-                    <p>View and analyze XML files.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/jsonTracker.html">
-                    <h2>JSON Tracker</h2>
-                    <p>Import a HAR file and browse, filter and inspect all JSON responses from captured network traffic.</p>
-                </a>
-            </div>
-        </section>
-
-        <section class="section">
-            <h2 class="section-title">String preparation tools</h2>
-            <div class="grid">
-                <a class="card" href="PavironicaHTML/stringFormatter.html">
-                    <h2>String Formatter</h2>
-                    <p>Turn lines into quoted string list values. Useful for SQL or R.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/sqlInsertGenerator.html">
-                    <h2>SQL Insert Generator</h2>
-                    <p>To generate insert queries from a .csv file.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/sqlUpdateGenerator.html">
-                    <h2>SQL Update Generator</h2>
-                    <p>To generate update queries from a .csv file.</p>
-                </a>
-            </div>
-        </section>
-
-        <section class="section">
-            <h2 class="section-title">File comparison tools</h2>
-            <div class="grid">
-                <a class="card" href="PavironicaHTML/jsonComparator.html">
-                    <h2>JSON Comparator</h2>
-                    <p>Exact or structural diff of two JSON documents.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/xmlComparator.html">
-                    <h2>XML Comparator</h2>
-                    <p>Exact or structural diff of two XML documents.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/csvComparator.html">
-                    <h2>CSV Comparator</h2>
-                    <p>Multiset row comparison (missing/extra rows).</p>
-                </a>
-            </div>
-        </section>
-
-
-        <section class="section">
-            <h2 class="section-title">Digital image processing</h2>
-            <div class="grid">
-                <a class="card" href="PavironicaHTML/photoSlicer.html">
-                    <h2>Photo Slicer</h2>
-                    <p>Slices images into equal parts.</p>
-                </a>
-                <a class="card" href="PavironicaHTML/posterMaker.html">
-                    <h2>Poster Maker</h2>
-                    <p>Slice an image into printable sheets (A4/A3/Letter…) at real size</p>
-                </a>
-                <a class="card" href="PavironicaHTML/panoramaStitcher.html">
-                    <h2>Panorama Stitcher</h2>
-                    <p>UNDER CONSTRUCTION - Stitch overlapping shots into a horizontal or vertical panorama.</p>
-                </a>
-            </div>
-        </section>
-
-        <section class="section">
-            <h2 class="section-title">Text processing</h2>
-            <div class="grid">
-                <a class="card" href="PavironicaHTML/mdBooklet.html">
-                    <h2>Booklet Maker</h2>
-                    <p>Turn a markdown file or an existing PDF into a print-ready A5 booklet, imposed on A4 sheets to fold and staple.</p>
-                </a>
-            </div>
-        </section>
-
-
+        <div class="home-grid">
+            <a class="card area-card" href="data-dev.html">
+                <h2>Data &amp; Dev</h2>
+                <p>Tools for web development and data work.</p>
+                <div class="contents">JSON &amp; XML viewers · SQL and string helpers · file diffing · HAR inspection</div>
+                <span class="go">Open Data &amp; Dev →</span>
+            </a>
+            <a class="card area-card" href="creative.html">
+                <h2>Creative</h2>
+                <p>Turn images and text into things to print or post.</p>
+                <div class="contents">Posters at real size · image slicing for Instagram · print-ready booklets</div>
+                <span class="go">Open Creative →</span>
+            </a>
+        </div>
     </main>
 
     <footer class="footer">
@@ -309,7 +59,6 @@
             <a href="https://www.linkedin.com/in/therealolds/">Contacts</a>
         </div>
     </footer>
-
 
     <script>
         (function () {
@@ -330,4 +79,3 @@
 </body>
 
 </html>
-
