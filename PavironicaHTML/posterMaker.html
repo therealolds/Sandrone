@@ -78,7 +78,8 @@
           <li>Generate the sheets, then press "Print".</li>
           <li>In the print dialog, set the scale to <strong>100% / Actual size</strong> (not "Fit to page"),
             otherwise the measurements will be wrong.</li>
-          <li>Trim (if you like) along the overlap edge and line the sheets up using the corner marks.</li>
+          <li>Cut off the white margin along the corner marks and butt the sheets edge to edge. If you set an
+            overlap, lay each sheet over its neighbour by that amount instead (see the options below).</li>
           <li>Tape the sheets to the wall to get a real sense of size and position before buying the actual print.</li>
         </ol>
       </div>
@@ -147,7 +148,7 @@
           </div>
           <div class="field">
             <label>Overlap between sheets (cm)</label>
-            <input type="number" id="overlapCm" value="1.0" step="0.1" min="0" max="5" />
+            <input type="number" id="overlapCm" value="0" step="0.1" min="0" max="5" />
           </div>
           <div class="field">
             <label>Quality (DPI)</label>
@@ -159,8 +160,15 @@
           </div>
         </div>
 
-        <p class="hint">The margin accounts for the edge many printers can't reach. The overlap duplicates a strip of
-          image on the edges of adjacent sheets so they're easier to line up when you tape them together.</p>
+        <p class="hint"><strong>Sheet safety margin:</strong> white border left around the image on every sheet,
+          because many printers can't print right up to the paper edge. Cut it off before joining the sheets.</p>
+        <p class="hint"><strong>Overlap between sheets:</strong> how many cm of image are printed on <em>both</em>
+          sheets at each join. With an overlap of 1 cm, the last 1 cm on the right of one sheet is repeated as the first
+          1 cm on the left of the next sheet, and the same happens between rows. This works like a gluing tab: slide
+          one sheet over its neighbour until the repeated strip lines up, which hides small cutting errors. If you
+          butt the sheets edge to edge instead, the repeated strip shows up twice and the poster comes out bigger than
+          the size you set. Leave it at <strong>0</strong> to print every part of the image exactly once, then cut
+          along the image edge and butt the sheets together.</p>
       </div>
 
       <div class="card">

@@ -61,7 +61,8 @@ function renderFullCanvas(img, fullWpx, fullHpx, fitMode) {
 //   widthCm, heightCm   : real-world size of the print
 //   paperWCm, paperHCm  : size of a single output sheet (defaults to A4 portrait)
 //   marginCm            : unprintable safety margin on each side of the sheet
-//   overlapCm           : image shared between adjacent tiles, for alignment
+//   overlapCm           : strip of image printed on both adjacent tiles, used as a gluing
+//                         tab; 0 means every part of the image is printed exactly once
 //   fitMode             : 'cover' | 'contain' | 'stretch'
 //   dpi                 : output resolution
 //
@@ -69,7 +70,7 @@ function renderFullCanvas(img, fullWpx, fullHpx, fitMode) {
 // where each tile is { row, col, label, widthCm, heightCm, dataUrl }.
 export function buildTiles(img, {
   widthCm, heightCm, paperWCm = 21, paperHCm = 29.7,
-  marginCm = 1, overlapCm = 1, fitMode = 'cover', dpi = 150,
+  marginCm = 1, overlapCm = 0, fitMode = 'cover', dpi = 150,
 } = {}) {
   if (!img) throw new Error('No image provided.');
   if (!(widthCm > 0) || !(heightCm > 0)) throw new Error('Enter a valid width and height in cm.');
